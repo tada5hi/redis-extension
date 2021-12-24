@@ -10,7 +10,8 @@
     "scripts": {
         "build": "rm -rf ./dist && tsc",
         "lint": "eslint --ext .js,.ts ./src",
-        "lint:fix": "npm run lint -- --fix"
+        "lint:fix": "npm run lint -- --fix",
+        "test": ""
     },
     "author": {
         "name": "Peter Placzek",
