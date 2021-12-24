@@ -7,10 +7,10 @@
 
 import { EntityCacheOptions } from './type';
 import { EntityKeyType } from '../type';
-import { setDefaultBuildPathFunction } from '../utils';
+import { setDefaultEntityBuildPathFunction } from '../utils';
 
 export function extendEntityCacheDefaultOptions<
     T extends EntityKeyType,
 >(options: EntityCacheOptions<T>) : EntityCacheOptions<T> {
-    return setDefaultBuildPathFunction(options);
+    return setDefaultEntityBuildPathFunction(options);
 }

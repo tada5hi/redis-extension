@@ -7,24 +7,28 @@
 
 import { EntityBaseOptions, EntityKeyType } from './type';
 
-export function setDefaultBuildPathFunction<K extends EntityKeyType>(options: EntityBaseOptions<K>) {
+export function buildEntityKeyPath<K extends EntityKeyType>(key: K) : string {
+    if (typeof key === 'string') {
+        return key;
+    } if (typeof key === 'number') {
+        return key.toString();
+    }
+
+    const out : string[] = [];
+
+    const keys = Object.keys(key);
+    for (let i = 0; i < keys.length; i++) {
+        out.push(`${keys[i]}:${key[keys[i]]}`);
+    }
+
+    return out.join('.');
+}
+
+export function setDefaultEntityBuildPathFunction<K extends EntityKeyType>(
+    options: EntityBaseOptions<K>,
+) {
     if (!options.buildPath) {
-        options.buildPath = (key: K) => {
-            if (typeof key === 'string') {
-                return key;
-            } if (typeof key === 'number') {
-                return key.toString();
-            }
-
-            const out : string[] = [];
-
-            const keys = Object.keys(key);
-            for (let i = 0; i < keys.length; i++) {
-                out.push(`${keys[i]}:${key[keys[i]]}`);
-            }
-
-            return out.join('.');
-        };
+        options.buildPath = buildEntityKeyPath;
     }
 
     return options;

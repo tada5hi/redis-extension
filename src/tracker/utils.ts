@@ -7,10 +7,10 @@
 
 import { EntityTrackerOptions } from './type';
 import { EntityKeyType } from '../type';
-import { setDefaultBuildPathFunction } from '../utils';
+import { setDefaultEntityBuildPathFunction } from '../utils';
 
 export function extendEntityTrackerDefaultOptions<
     T extends EntityKeyType,
 >(options: EntityTrackerOptions<T>) : EntityTrackerOptions<T> {
-    return setDefaultBuildPathFunction(options);
+    return setDefaultEntityBuildPathFunction(options);
 }
