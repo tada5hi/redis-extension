@@ -60,6 +60,7 @@ export class EntityCache<
             for (let i = 0; i < expireKeys.length; i++) {
                 const [err, time] = result[i] ? result[i] : undefined;
                 if (err) {
+                    this.emit('failed', expireKeys[i]);
                     continue;
                 }
 
@@ -115,7 +116,7 @@ export class EntityCache<
         context ??= {};
 
         const idPath = this.buildIDPath(id, context.key);
-        const seconds = context.seconds ?? 300;
+        const seconds = context.seconds ?? this.options.seconds ?? 300;
 
         if (typeof value === 'undefined') {
             const expireSet: number = await this.context.redisDatabase.expire(idPath, seconds);
