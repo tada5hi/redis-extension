@@ -5,12 +5,12 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { EntityTrackerOptions } from './type';
+import { EntityCacheOptions } from './type';
 import { EntityKeyType } from '../type';
 import { setDefaultBuildPathFunction } from '../utils';
 
-export function extendEntityTrackerDefaultOptions<
+export function extendEntityCacheDefaultOptions<
     T extends EntityKeyType,
->(options: EntityTrackerOptions<T>) : EntityTrackerOptions<T> {
+>(options: EntityCacheOptions<T>) : EntityCacheOptions<T> {
     return setDefaultBuildPathFunction(options);
 }

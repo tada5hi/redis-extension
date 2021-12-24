@@ -7,16 +7,15 @@
 
 import {
     EntityTrackerContext,
-    EntityTrackerIDType,
     EntityTrackerItem,
-    EntityTrackerKeyType,
     EntityTrackerOptions,
 } from './type';
-import { extendDefaultOptions } from './utils';
+import { extendEntityTrackerDefaultOptions } from './utils';
+import { EntityIDType, EntityKeyType } from '../type';
 
 export class EntityTracker<
-    K extends EntityTrackerKeyType,
-    ID extends EntityTrackerIDType,
+    K extends EntityKeyType,
+    ID extends EntityIDType,
 > {
     protected context: EntityTrackerContext;
 
@@ -24,13 +23,13 @@ export class EntityTracker<
 
     constructor(context: EntityTrackerContext, options: EntityTrackerOptions<K>) {
         this.context = context;
-        this.options = extendDefaultOptions(options);
+        this.options = extendEntityTrackerDefaultOptions(options);
     }
 
     //--------------------------------------------------------------------
 
     async getTotal(key?: K) : Promise<number | undefined> {
-        return this.context.redisDatabase.zcard(this.options.buildKey(key));
+        return this.context.redisDatabase.zcard(this.options.buildPath(key));
     }
 
     async getMany(key?: K, limit?: number, offset?: number) {
@@ -38,7 +37,7 @@ export class EntityTracker<
 
         if (typeof limit === 'undefined') {
             data = await this.context.redisDatabase.zrevrangebyscore(
-                this.options.buildKey(key),
+                this.options.buildPath(key),
                 '+inf',
                 '-inf',
                 'WITHSCORES',
@@ -47,7 +46,7 @@ export class EntityTracker<
             offset ??= 0;
 
             data = await this.context.redisDatabase.zrevrangebyscore(
-                this.options.buildKey(key),
+                this.options.buildPath(key),
                 '+inf',
                 '-inf',
                 'WITHSCORES',
@@ -79,7 +78,7 @@ export class EntityTracker<
 
     async add(id: ID, key?: K, meta?: Record<string, any>) {
         await this.context.redisDatabase.zadd(
-            this.options.buildKey(key),
+            this.options.buildPath(key),
             (Date.now() / 1000).toFixed(),
             id,
         );
@@ -87,7 +86,7 @@ export class EntityTracker<
 
     async drop(id: ID, key?: K) {
         await this.context.redisDatabase.zrem(
-            this.options.buildKey(key),
+            this.options.buildPath(key),
             id,
         );
     }
@@ -118,6 +117,6 @@ export class EntityTracker<
     //--------------------------------------------------------------------
 
     buildMetaPath(id: ID, key?: K) {
-        return `${this.options.buildKey(key)}:${id}`;
+        return `${this.options.buildPath(key)}:${id}`;
     }
 }
