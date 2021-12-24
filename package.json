@@ -11,7 +11,8 @@
         "build": "rm -rf ./dist && tsc",
         "lint": "eslint --ext .js,.ts ./src",
         "lint:fix": "npm run lint -- --fix",
-        "test": ""
+        "test": "",
+        "prepublishOnly": "npm run build"
     },
     "author": {
         "name": "Peter Placzek",
