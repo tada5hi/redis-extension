@@ -5,6 +5,9 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export * from './config';
-export * from './entity';
-export * from './utils';
+import { RedisOptions } from 'ioredis';
+
+export type RedisConfig = {
+    options?: RedisOptions,
+    connectionString?: string
+};
