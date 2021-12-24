@@ -1,5 +1,7 @@
 # Redis Extension 🍬
 
+[![main](https://github.com/tada5hi/redis-extension/actions/workflows/main.yml/badge.svg)](https://github.com/tada5hi/redis-extension/actions/workflows/main.yml)
+
 ---
 **Important NOTE**
 
