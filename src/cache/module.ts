@@ -11,6 +11,18 @@ import { EntityCacheContext, EntityCacheOptions } from './type';
 import { EntityIDType, EntityKeyType } from '../type';
 import { extendEntityCacheDefaultOptions } from './utils';
 
+export declare interface EntityCache<
+    K extends EntityKeyType,
+    ID extends EntityIDType,
+> {
+    on(event: 'expired', listener: (key: string) => void): this;
+    on(event: 'failed', listener: (key: string) => void): this;
+    on(event: 'updated', listener: (key: string) => void): this;
+    on(event: 'started', listener: (key: string) => void): this;
+    on(event: 'stopped', listener: (key: string) => void): this;
+    on(event: string, listener: CallableFunction): this;
+}
+
 export class EntityCache<
     K extends EntityKeyType,
     ID extends EntityIDType,
