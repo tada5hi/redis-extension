@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021.
+ * Copyright (c) 2021-2021.
  * Author Peter Placzek (tada5hi)
  * For the full copyright and license information,
  * view the LICENSE file that was distributed with this source code.
@@ -14,14 +14,18 @@ export function buildEntityKeyPath<K extends EntityKeyType>(key: K) : string {
         return key.toString();
     }
 
-    const out : string[] = [];
+    if (Object.prototype.toString.call(key) === '[object Object]') {
+        const out : string[] = [];
 
-    const keys = Object.keys(key);
-    for (let i = 0; i < keys.length; i++) {
-        out.push(`${keys[i]}:${key[keys[i]]}`);
+        const keys = Object.keys(key);
+        for (let i = 0; i < keys.length; i++) {
+            out.push(`${keys[i]}:${key[keys[i]]}`);
+        }
+
+        return out.join('.');
     }
 
-    return out.join('.');
+    return '';
 }
 
 export function setDefaultEntityBuildPathFunction<K extends EntityKeyType>(

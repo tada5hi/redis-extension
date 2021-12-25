@@ -31,7 +31,7 @@ export class EntityCache<
 
     protected schedulerLocked = false;
 
-    protected schedulerLastChecked : Record<string, number>;
+    protected schedulerLastChecked : Record<string, number> = {};
 
     protected context : EntityCacheContext;
 
@@ -39,8 +39,10 @@ export class EntityCache<
 
     //--------------------------------------------------------------------
 
-    constructor(context: EntityCacheContext, options: EntityCacheOptions<K>) {
+    constructor(context: EntityCacheContext, options?: EntityCacheOptions<K>) {
         super();
+
+        options ??= {};
 
         this.context = context;
         this.options = extendEntityCacheDefaultOptions(options);
@@ -150,7 +152,7 @@ export class EntityCache<
 
         try {
             const entry = await this.context.redisDatabase.get(idPath);
-            if (entry === null) {
+            if (entry === null || typeof entry === 'undefined') {
                 return undefined;
             }
 
