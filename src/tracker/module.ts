@@ -32,7 +32,7 @@ export class RedisTracker<
     //--------------------------------------------------------------------
 
     async getTotal(context?: K) : Promise<number | undefined> {
-        return this.context.redisDatabase.zcard(this.buildRedisKey({ context }));
+        return this.context.redis.zcard(this.buildRedisKey({ context }));
     }
 
     async getMany(options?: {context?: K, limit?: number, offset?: number, sort?: 'ASC' | 'DESC'}) {
@@ -43,14 +43,14 @@ export class RedisTracker<
 
         if (typeof options.limit === 'undefined') {
             if (options.sort === 'DESC') {
-                data = await this.context.redisDatabase.zrevrangebyscore(
+                data = await this.context.redis.zrevrangebyscore(
                     this.buildRedisKey({ context: options.context }),
                     '+inf',
                     '-inf',
                     'WITHSCORES',
                 );
             } else {
-                data = await this.context.redisDatabase.zrangebyscore(
+                data = await this.context.redis.zrangebyscore(
                     this.buildRedisKey({ context: options.context }),
                     '-inf',
                     '+inf',
@@ -60,7 +60,7 @@ export class RedisTracker<
         } else {
             options.offset ??= 0;
             if (options.sort === 'DESC') {
-                data = await this.context.redisDatabase.zrevrangebyscore(
+                data = await this.context.redis.zrevrangebyscore(
                     this.buildRedisKey({ context: options.context }),
                     '+inf',
                     '-inf',
@@ -70,7 +70,7 @@ export class RedisTracker<
                     options.limit,
                 );
             } else {
-                data = await this.context.redisDatabase.zrangebyscore(
+                data = await this.context.redis.zrangebyscore(
                     this.buildRedisKey({ context: options.context }),
                     '-inf',
                     '+inf',
@@ -105,7 +105,7 @@ export class RedisTracker<
     async add(id: ID, options?: {context?: K, meta?: Record<string, any>}) {
         options ??= {};
 
-        await this.context.redisDatabase.zadd(
+        await this.context.redis.zadd(
             this.buildRedisKey({ context: options.context }),
             parseInt(Date.now().toFixed(), 10),
             id,
@@ -117,7 +117,7 @@ export class RedisTracker<
     }
 
     async drop(id: ID, key?: K) {
-        await this.context.redisDatabase.zrem(
+        await this.context.redis.zrem(
             this.buildRedisKey({ context: key }),
             id,
         );
@@ -128,7 +128,7 @@ export class RedisTracker<
     //--------------------------------------------------------------------
 
     public async setMeta(id: ID, meta: Record<string, any>, context?: K) {
-        await this.context.redisDatabase.hset(
+        await this.context.redis.hset(
             this.buildRedisMetaKey(context),
             id,
             JSON.stringify(meta),
@@ -136,7 +136,7 @@ export class RedisTracker<
     }
 
     public async getMeta(id: ID, context?: K) : Promise<Record<string, any> | undefined> {
-        const data = await this.context.redisDatabase.hget(
+        const data = await this.context.redis.hget(
             this.buildRedisMetaKey(context),
             `${id}`,
         );
@@ -149,7 +149,7 @@ export class RedisTracker<
     }
 
     public async dropMeta(id: ID, context?: K) {
-        await this.context.redisDatabase.hdel(this.buildRedisMetaKey(context), `${id}`);
+        await this.context.redis.hdel(this.buildRedisMetaKey(context), `${id}`);
     }
 
     //--------------------------------------------------------------------

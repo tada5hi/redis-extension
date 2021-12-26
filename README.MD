@@ -38,7 +38,9 @@ The config sub-module is required to register a configuration for a given key,
 like in the following example.
 
 ```typescript
-import { setRedisConfig } from "redis-extension";
+import {
+    setRedisConfig
+} from "redis-extension";
 
 setRedisConfig('key', {
     connectionString: 'redis://127.0.0.1',
@@ -56,7 +58,10 @@ to specify the Redis server to which the driver should connect to.
 A singleton instance for a configuration associated to a given key, can be retrieved like described in the following:
 
 ```typescript
-import { useRedisInstance, Redis } from "redis-extension";
+import {
+    useRedisInstance,
+    Redis
+} from "redis-extension";
 
 const instance : Redis = useRedisInstance('key');
 
@@ -74,13 +79,15 @@ The cache sub-module requires a Redis instance,
 which can either be created with this library or with the underneath ioredis driver itself.
 
 ```typescript
-import {useRedisInstance} from "./instance";
-import {RedisCache} from "./module";
+import {
+    RedisCache,
+    useRedisInstance
+} from "redis-extension";
 
 (async () => {
     const cache = new RedisCache<number>(
         {
-            redisDatabae: useRedisInstance('default')
+            redis: useRedisInstance('default')
         },
         {
             prefix: 'user'

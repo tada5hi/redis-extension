@@ -11,7 +11,7 @@ import {RedisCache} from "../../../src";
 describe('src/cache/index.ts', function () {
     it('should build cache path', () => {
         const cache = new RedisCache<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         expect(cache.buildRedisKey({id: 'id'})).toEqual('cache#id');
@@ -19,7 +19,7 @@ describe('src/cache/index.ts', function () {
 
     it('should create & drop cache', async () => {
         const cache = new RedisCache<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         await cache.set('id', 'abc');
@@ -40,7 +40,7 @@ describe('src/cache/index.ts', function () {
 
     it('should create & drop cache with no value', async () => {
         const cache = new RedisCache<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         await cache.set('id');
@@ -53,7 +53,7 @@ describe('src/cache/index.ts', function () {
 
     it('should create & drop cache with context', async () => {
         const cache = new RedisCache<string, {realm_id: string}>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         const context = {

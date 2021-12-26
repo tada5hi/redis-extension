@@ -62,7 +62,7 @@ export class RedisCache<
 
             this.schedulerLocked = true;
 
-            const ttlPipeline = this.context.redisDatabase.pipeline();
+            const ttlPipeline = this.context.redis.pipeline();
 
             let expireKeys = Object.keys(this.schedulerLastChecked);
             expireKeys = expireKeys.filter((expireKey) => this.schedulerLastChecked[expireKey] <= parseInt(new Date().getTime().toFixed(), 10));
@@ -73,7 +73,7 @@ export class RedisCache<
 
             const result = await ttlPipeline.exec();
 
-            const delPipeline = this.context.redisDatabase.pipeline();
+            const delPipeline = this.context.redis.pipeline();
 
             for (let i = 0; i < expireKeys.length; i++) {
                 const [err, time] = result[i] ? result[i] : undefined;
@@ -129,7 +129,7 @@ export class RedisCache<
             return false;
         }
 
-        const ttl = await this.context.redisDatabase.ttl(idPath);
+        const ttl = await this.context.redis.ttl(idPath);
 
         return ttl <= 0;
     }
@@ -141,13 +141,13 @@ export class RedisCache<
         const seconds = options.seconds ?? this.options.seconds ?? 300;
 
         if (typeof value === 'undefined') {
-            const expireSet: number = await this.context.redisDatabase.expire(idPath, seconds);
+            const expireSet: number = await this.context.redis.expire(idPath, seconds);
 
             if (expireSet === 0) {
-                await this.context.redisDatabase.set(idPath, 'true', 'EX', seconds);
+                await this.context.redis.set(idPath, 'true', 'EX', seconds);
             }
         } else {
-            await this.context.redisDatabase.set(idPath, JSON.stringify(value), 'EX', seconds);
+            await this.context.redis.set(idPath, JSON.stringify(value), 'EX', seconds);
         }
 
         this.schedulerLastChecked[idPath] = new Date().getTime() + (seconds * 1000);
@@ -157,7 +157,7 @@ export class RedisCache<
         const idPath = this.buildRedisKey({ id, context });
 
         try {
-            const entry = await this.context.redisDatabase.get(idPath);
+            const entry = await this.context.redis.get(idPath);
             if (entry === null || typeof entry === 'undefined') {
                 return undefined;
             }
@@ -176,7 +176,7 @@ export class RedisCache<
             delete this.schedulerLastChecked[idPath];
         }
 
-        return await this.context.redisDatabase.del(idPath) === 1;
+        return await this.context.redis.del(idPath) === 1;
     }
 
     //--------------------------------------------------------------------

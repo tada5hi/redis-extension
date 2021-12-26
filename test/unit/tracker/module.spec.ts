@@ -13,7 +13,7 @@ const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 describe('src/tracker/index.ts', function () {
     it('should build tracker path', () => {
         const tracker = new RedisTracker<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         expect(tracker.buildRedisKey({id: 'id'})).toEqual('tracker#id');
@@ -21,7 +21,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should add & count entries', async () => {
         const tracker = new RedisTracker<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         await tracker.add('foo');
@@ -35,7 +35,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should drop & count entries', async () => {
         const tracker = new RedisTracker<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         await tracker.add('foo');
@@ -48,7 +48,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should set, get & drop meta', async () => {
         const tracker = new RedisTracker<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         await tracker.setMeta('foo', {last_seen: false});
@@ -70,7 +70,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should get entries', async () => {
         const tracker = new RedisTracker<string>({
-            redisDatabase: new RealIORedis()
+            redis: new RealIORedis()
         });
 
         await tracker.add('foo');

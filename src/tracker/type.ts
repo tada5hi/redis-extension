@@ -9,7 +9,7 @@ import { Redis } from 'ioredis';
 import { RedisKeyOptions } from '../type';
 
 export type RedisTrackerContext = {
-    redisDatabase: Redis
+    redis: Redis
 };
 
 export type RedisTrackerOptions = RedisKeyOptions;

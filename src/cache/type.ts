@@ -9,7 +9,7 @@ import { Redis } from 'ioredis';
 import { RedisKeyOptions } from '../type';
 
 export type EntityCacheContext = {
-    redisDatabase: Redis
+    redis: Redis
 };
 
 export type EntityCacheOptions = RedisKeyOptions & {
