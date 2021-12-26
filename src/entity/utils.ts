@@ -5,35 +5,39 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { EntityBaseOptions, EntityKeyType } from './type';
+import { RedisKeyContext, RedisKeyEntityID, RedisKeyOptions } from './type';
 
-export function buildEntityKeyPath<K extends EntityKeyType>(key: K) : string {
-    if (typeof key === 'string') {
-        return key;
-    } if (typeof key === 'number') {
-        return key.toString();
+export function buildRedisKey<
+    I extends RedisKeyEntityID,
+    C extends RedisKeyContext = never,
+>(params?: {context?: C, id?: I}, options?: RedisKeyOptions) {
+    params ??= {};
+    options ??= {};
+
+    const parts : string[] = [];
+
+    if (options.pathPrefix) {
+        parts.push(options.pathPrefix);
     }
 
-    if (Object.prototype.toString.call(key) === '[object Object]') {
+    if (typeof params.context !== 'undefined') {
         const out : string[] = [];
 
-        const keys = Object.keys(key);
+        const keys = Object.keys(params.context);
         for (let i = 0; i < keys.length; i++) {
-            out.push(`${keys[i]}:${key[keys[i]]}`);
+            out.push(`${keys[i]}:${params.context[keys[i]]}`);
         }
 
-        return out.join('.');
+        parts.push(`{${out.join(',')}}`);
     }
 
-    return '';
-}
-
-export function setDefaultEntityBuildPathFunction<K extends EntityKeyType>(
-    options: EntityBaseOptions<K>,
-) {
-    if (!options.buildPath) {
-        options.buildPath = buildEntityKeyPath;
+    if (typeof params.id !== 'undefined') {
+        parts.push(`#${params.id}`);
     }
 
-    return options;
+    if (options.pathSuffix) {
+        parts.push(options.pathSuffix);
+    }
+
+    return parts.join('.');
 }

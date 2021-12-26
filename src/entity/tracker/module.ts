@@ -11,17 +11,18 @@ import {
     EntityTrackerOptions,
 } from './type';
 import { extendEntityTrackerDefaultOptions } from './utils';
-import { EntityIDType, EntityKeyType } from '../type';
+import { RedisKeyContext, RedisKeyEntityID } from '../type';
+import { buildRedisKey } from '../utils';
 
 export class EntityTracker<
-    K extends EntityKeyType,
-    ID extends EntityIDType,
+    K extends RedisKeyContext,
+    ID extends RedisKeyEntityID,
 > {
     protected context: EntityTrackerContext;
 
-    protected options: EntityTrackerOptions<K>;
+    protected options: EntityTrackerOptions;
 
-    constructor(context: EntityTrackerContext, options: EntityTrackerOptions<K>) {
+    constructor(context: EntityTrackerContext, options: EntityTrackerOptions) {
         this.context = context;
         this.options = extendEntityTrackerDefaultOptions(options);
     }
@@ -29,7 +30,7 @@ export class EntityTracker<
     //--------------------------------------------------------------------
 
     async getTotal(key?: K) : Promise<number | undefined> {
-        return this.context.redisDatabase.zcard(this.options.buildPath(key));
+        return this.context.redisDatabase.zcard(this.buildRedisKey({ context: key }));
     }
 
     async getMany(key?: K, limit?: number, offset?: number) {
@@ -37,7 +38,7 @@ export class EntityTracker<
 
         if (typeof limit === 'undefined') {
             data = await this.context.redisDatabase.zrevrangebyscore(
-                this.options.buildPath(key),
+                this.buildRedisKey({ context: key }),
                 '+inf',
                 '-inf',
                 'WITHSCORES',
@@ -46,7 +47,7 @@ export class EntityTracker<
             offset ??= 0;
 
             data = await this.context.redisDatabase.zrevrangebyscore(
-                this.options.buildPath(key),
+                this.buildRedisKey({ context: key }),
                 '+inf',
                 '-inf',
                 'WITHSCORES',
@@ -78,17 +79,23 @@ export class EntityTracker<
 
     async add(id: ID, key?: K, meta?: Record<string, any>) {
         await this.context.redisDatabase.zadd(
-            this.options.buildPath(key),
+            this.buildRedisKey({ context: key }),
             (Date.now() / 1000).toFixed(),
             id,
         );
+
+        if (meta) {
+            await this.setMeta(id, meta, key);
+        }
     }
 
     async drop(id: ID, key?: K) {
         await this.context.redisDatabase.zrem(
-            this.options.buildPath(key),
+            this.buildRedisKey({ context: key }),
             id,
         );
+
+        await this.dropMeta(id, key);
     }
 
     //--------------------------------------------------------------------
@@ -97,7 +104,7 @@ export class EntityTracker<
         const keys = Object.keys(meta);
 
         for (let i = 0; i < keys.length; i++) {
-            await this.context.redisDatabase.hset(this.buildMetaPath(id, key), keys[i], meta[keys[i]]);
+            await this.context.redisDatabase.hset(this.buildRedisKeyMeta(id, key), keys[i], meta[keys[i]]);
         }
     }
 
@@ -107,16 +114,21 @@ export class EntityTracker<
         metaValue: any,
         key?: K,
     ) {
-        await this.context.redisDatabase.hset(this.buildMetaPath(id, key), metaKey, metaValue);
+        await this.context.redisDatabase.hset(this.buildRedisKeyMeta(id, key), metaKey, metaValue);
     }
 
     public async dropMeta(id: ID, key?: K) {
-        await this.context.redisDatabase.del(this.buildMetaPath(id, key));
+        await this.context.redisDatabase.del(this.buildRedisKeyMeta(id, key));
     }
 
     //--------------------------------------------------------------------
 
-    buildMetaPath(id: ID, key?: K) {
-        return `${this.options.buildPath(key)}:${id}`;
+    buildRedisKey(params: {id?: ID, context?: K}) {
+        const keyPath = buildRedisKey(params, this.options);
+        return keyPath.length > 0 ? `cache.${keyPath}` : 'tracker';
+    }
+
+    buildRedisKeyMeta(id: ID, key?: K) {
+        return `${this.buildRedisKey({ id, context: key })}.meta`;
     }
 }

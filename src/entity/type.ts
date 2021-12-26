@@ -5,9 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type EntityIDType = string | number;
-export type EntityKeyType = string | number | Record<string, any> | undefined;
+export type RedisKeyEntityID = string | number;
+export type RedisKeyContext = Record<string, any>;
 
-export type EntityBaseOptions<K> = {
-    buildPath?: (key: K) => string
+export type RedisKeyOptions = {
+    pathPrefix?: string,
+    pathSuffix?: string
 };

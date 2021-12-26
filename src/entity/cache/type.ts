@@ -6,12 +6,12 @@
  */
 
 import { Redis } from 'ioredis';
-import { EntityBaseOptions, EntityKeyType } from '../type';
+import { RedisKeyOptions } from '../type';
 
 export type EntityCacheContext = {
     redisDatabase: Redis
 };
 
-export type EntityCacheOptions<K extends EntityKeyType> = EntityBaseOptions<K> & {
+export type EntityCacheOptions = RedisKeyOptions & {
     seconds?: number
 };

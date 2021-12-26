@@ -6,11 +6,10 @@
  */
 
 import { EntityCacheOptions } from './type';
-import { EntityKeyType } from '../type';
-import { setDefaultEntityBuildPathFunction } from '../utils';
+import { RedisKeyContext } from '../type';
 
 export function extendEntityCacheDefaultOptions<
-    T extends EntityKeyType,
->(options: EntityCacheOptions<T>) : EntityCacheOptions<T> {
-    return setDefaultEntityBuildPathFunction(options);
+    T extends RedisKeyContext,
+>(options: EntityCacheOptions) : EntityCacheOptions {
+    return options;
 }

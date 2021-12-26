@@ -8,12 +8,13 @@
 import { EventEmitter } from 'events';
 import { Job, scheduleJob } from 'node-schedule';
 import { EntityCacheContext, EntityCacheOptions } from './type';
-import { EntityIDType, EntityKeyType } from '../type';
+import { RedisKeyContext, RedisKeyEntityID } from '../type';
 import { extendEntityCacheDefaultOptions } from './utils';
+import { buildRedisKey } from '../utils';
 
 export declare interface EntityCache<
-    K extends EntityKeyType,
-    ID extends EntityIDType,
+    ID extends RedisKeyEntityID,
+    K extends RedisKeyContext = never,
 > {
     on(event: 'expired', listener: (key: string) => void): this;
     on(event: 'failed', listener: (key: string) => void): this;
@@ -24,8 +25,8 @@ export declare interface EntityCache<
 }
 
 export class EntityCache<
-    K extends EntityKeyType,
-    ID extends EntityIDType,
+    ID extends RedisKeyEntityID,
+    K extends RedisKeyContext = never,
 > extends EventEmitter {
     protected scheduler : Job | undefined;
 
@@ -35,11 +36,11 @@ export class EntityCache<
 
     protected context : EntityCacheContext;
 
-    protected options : EntityCacheOptions<K>;
+    protected options : EntityCacheOptions;
 
     //--------------------------------------------------------------------
 
-    constructor(context: EntityCacheContext, options?: EntityCacheOptions<K>) {
+    constructor(context: EntityCacheContext, options?: EntityCacheOptions) {
         super();
 
         options ??= {};
@@ -113,9 +114,8 @@ export class EntityCache<
 
     //--------------------------------------------------------------------
 
-    async isExpired(id: ID, context?: {key?: K}) : Promise<boolean> {
-        context ??= {};
-        const idPath = this.buildIDPath(id, context.key);
+    async isExpired(id: ID, context?: K) : Promise<boolean> {
+        const idPath = this.buildRedisKey({ id, context });
 
         if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
             return false;
@@ -126,11 +126,11 @@ export class EntityCache<
         return ttl <= 0;
     }
 
-    async set(id: ID, value?: any, context?: {seconds?: number, key?: K}) {
-        context ??= {};
+    async set(id: ID, value?: any, options?: {seconds?: number, context?: K}) {
+        options ??= {};
 
-        const idPath = this.buildIDPath(id, context.key);
-        const seconds = context.seconds ?? this.options.seconds ?? 300;
+        const idPath = this.buildRedisKey({ id, context: options.context });
+        const seconds = options.seconds ?? this.options.seconds ?? 300;
 
         if (typeof value === 'undefined') {
             const expireSet: number = await this.context.redisDatabase.expire(idPath, seconds);
@@ -145,10 +145,8 @@ export class EntityCache<
         this.schedulerLastChecked[idPath] = new Date().getTime() + (seconds * 1000);
     }
 
-    async get(id: ID, context?: {key?: K}) : Promise<undefined | any> {
-        context ??= {};
-
-        const idPath = this.buildIDPath(id, context.key);
+    async get(id: ID, context?: K) : Promise<undefined | any> {
+        const idPath = this.buildRedisKey({ id, context });
 
         try {
             const entry = await this.context.redisDatabase.get(idPath);
@@ -163,7 +161,7 @@ export class EntityCache<
     }
 
     async drop(id: ID, context?: {key?: K}) : Promise<boolean> {
-        const idPath = this.buildIDPath(id, context.key);
+        const idPath = this.buildRedisKey({ id, context: context.key });
 
         if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
             delete this.schedulerLastChecked[idPath];
@@ -174,7 +172,8 @@ export class EntityCache<
 
     //--------------------------------------------------------------------
 
-    buildIDPath(id: ID, key?: K) {
-        return `${this.options.buildPath(key)}:${id}`;
+    buildRedisKey(params: {id: ID, context?: K}) {
+        const keyPath = buildRedisKey(params, this.options);
+        return keyPath.length > 0 ? `cache${keyPath}` : 'cache';
     }
 }

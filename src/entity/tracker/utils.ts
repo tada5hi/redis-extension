@@ -6,11 +6,10 @@
  */
 
 import { EntityTrackerOptions } from './type';
-import { EntityKeyType } from '../type';
-import { setDefaultEntityBuildPathFunction } from '../utils';
+import { RedisKeyContext } from '../type';
 
 export function extendEntityTrackerDefaultOptions<
-    T extends EntityKeyType,
->(options: EntityTrackerOptions<T>) : EntityTrackerOptions<T> {
-    return setDefaultEntityBuildPathFunction(options);
+    T extends RedisKeyContext,
+>(options: EntityTrackerOptions) : EntityTrackerOptions {
+    return options;
 }

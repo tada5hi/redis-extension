@@ -6,13 +6,13 @@
  */
 
 import { Redis } from 'ioredis';
-import { EntityBaseOptions, EntityKeyType } from '../type';
+import { RedisKeyOptions } from '../type';
 
 export type EntityTrackerContext = {
     redisDatabase: Redis
 };
 
-export type EntityTrackerOptions<K extends EntityKeyType> = EntityBaseOptions<K> & {
+export type EntityTrackerOptions = RedisKeyOptions & {
 
 };
 
