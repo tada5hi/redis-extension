@@ -57,14 +57,16 @@ export class RedisCache<
             return this.scheduler;
         }
 
-        this.scheduler = scheduleJob('*/10 * * * * *', async () => {
+        this.scheduler = scheduleJob('*/5 * * * * *', async () => {
             if (this.schedulerLocked) return;
 
             this.schedulerLocked = true;
 
             const ttlPipeline = this.context.redisDatabase.pipeline();
 
-            const expireKeys = Object.keys(this.schedulerLastChecked);
+            let expireKeys = Object.keys(this.schedulerLastChecked);
+            expireKeys = expireKeys.filter((expireKey) => this.schedulerLastChecked[expireKey] <= parseInt(new Date().getTime().toFixed(), 10));
+
             for (let i = 0; i < expireKeys.length; i++) {
                 ttlPipeline.ttl(expireKeys[i]);
             }
@@ -77,11 +79,15 @@ export class RedisCache<
                 const [err, time] = result[i] ? result[i] : undefined;
                 if (err) {
                     this.emit('failed', expireKeys[i]);
+                    if (this.schedulerLastChecked[expireKeys[i]]) {
+                        delete this.schedulerLastChecked[expireKeys[i]];
+                    }
+
                     continue;
                 }
 
                 if (time > 0) {
-                    this.schedulerLastChecked[expireKeys[i]] = new Date().getTime();
+                    this.schedulerLastChecked[expireKeys[i]] = parseInt((new Date().getTime() + 7500).toFixed(), 10);
                     this.emit('updated', expireKeys[i]);
                 } else {
                     delPipeline.del(expireKeys[i]);
