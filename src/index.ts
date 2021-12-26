@@ -10,4 +10,4 @@ export * from './config';
 export * from './external';
 export * from './tracker';
 export * from './type';
-export * from './utils/redis';
+export * from './utils';
