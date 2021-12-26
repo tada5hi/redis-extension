@@ -3,11 +3,13 @@
 [![npm version](https://badge.fury.io/js/redis-extension.svg)](https://badge.fury.io/js/redis-extension)
 [![main](https://github.com/tada5hi/redis-extension/actions/workflows/main.yml/badge.svg)](https://github.com/tada5hi/redis-extension/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/tada5hi/redis-extension/branch/master/graph/badge.svg?token=0VL41WO0CG)](https://codecov.io/gh/tada5hi/redis-extension)
+
 ---
 **Important NOTE**
 
 The public API is still in progress and in development ☂ and can still can change therefore until the v1.0.0 release.
 So please stay patient, till it is fully available ⭐.
+
 ---
 
 This is a library to
