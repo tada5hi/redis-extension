@@ -5,10 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { RedisKeyContext, RedisKeyEntityID, RedisKeyOptions } from './type';
+import { RedisEntityID, RedisKeyContext, RedisKeyOptions } from '../type';
 
 export function buildRedisKey<
-    I extends RedisKeyEntityID,
+    I extends RedisEntityID = never,
     C extends RedisKeyContext = never,
 >(params?: {context?: C, id?: I}, options?: RedisKeyOptions) {
     params ??= {};
@@ -16,8 +16,8 @@ export function buildRedisKey<
 
     const parts : string[] = [];
 
-    if (options.pathPrefix) {
-        parts.push(options.pathPrefix);
+    if (options.prefix) {
+        parts.push(options.prefix);
     }
 
     if (typeof params.context !== 'undefined') {
@@ -31,13 +31,14 @@ export function buildRedisKey<
         parts.push(`{${out.join(',')}}`);
     }
 
+    let key = parts.join('.');
     if (typeof params.id !== 'undefined') {
-        parts.push(`#${params.id}`);
+        key += `#${params.id}`;
     }
 
-    if (options.pathSuffix) {
-        parts.push(options.pathSuffix);
+    if (options.suffix) {
+        key += (key.length > 0 ? '.' : '') + options.suffix;
     }
 
-    return parts.join('.');
+    return key;
 }

@@ -7,3 +7,4 @@
 
 export * from './instance';
 export * from './merge-deep';
+export * from './redis';

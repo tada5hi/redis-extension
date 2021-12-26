@@ -8,15 +8,13 @@
 import { Redis } from 'ioredis';
 import { RedisKeyOptions } from '../type';
 
-export type EntityTrackerContext = {
+export type RedisTrackerContext = {
     redisDatabase: Redis
 };
 
-export type EntityTrackerOptions = RedisKeyOptions & {
+export type RedisTrackerOptions = RedisKeyOptions;
 
-};
-
-export type EntityTrackerItem<ID> = {
+export type RedisTrackerItem<ID> = {
     id: ID,
     score: number
 };

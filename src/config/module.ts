@@ -15,8 +15,6 @@ export function setRedisConfig(
     value: RedisConfig,
 ) {
     configMap.set(key, value);
-
-    return value;
 }
 
 export function getRedisConfig(
@@ -35,18 +33,12 @@ export function extendRedisConfig(config: RedisConfig) : RedisConfig {
         options: {
             enableReadyCheck: true,
             retryStrategy(times: number): number | void | null {
-                if (times === 3) {
-                    return undefined;
-                }
-
-                return Math.min(times * 50, 2000);
+                /* istanbul ignore next */
+                return times === 3 ? null : Math.min(times * 50, 2000);
             },
             reconnectOnError(error: Error): boolean {
-                if (error.message.includes('ECONNRESET')) {
-                    return true;
-                }
-
-                return false;
+                /* istanbul ignore next */
+                return error.message.includes('ECONNRESET');
             },
         },
     }, config);

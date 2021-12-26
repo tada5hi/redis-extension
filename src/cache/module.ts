@@ -8,12 +8,12 @@
 import { EventEmitter } from 'events';
 import { Job, scheduleJob } from 'node-schedule';
 import { EntityCacheContext, EntityCacheOptions } from './type';
-import { RedisKeyContext, RedisKeyEntityID } from '../type';
+import { RedisEntityID, RedisKeyContext } from '../type';
 import { extendEntityCacheDefaultOptions } from './utils';
 import { buildRedisKey } from '../utils';
 
 export declare interface EntityCache<
-    ID extends RedisKeyEntityID,
+    ID extends RedisEntityID,
     K extends RedisKeyContext = never,
 > {
     on(event: 'expired', listener: (key: string) => void): this;
@@ -24,8 +24,8 @@ export declare interface EntityCache<
     on(event: string, listener: CallableFunction): this;
 }
 
-export class EntityCache<
-    ID extends RedisKeyEntityID,
+export class RedisCache<
+    ID extends RedisEntityID,
     K extends RedisKeyContext = never,
 > extends EventEmitter {
     protected scheduler : Job | undefined;
@@ -51,6 +51,7 @@ export class EntityCache<
 
     //--------------------------------------------------------------------
 
+    /* istanbul ignore next */
     startScheduler() : Job {
         if (typeof this.scheduler !== 'undefined') {
             return this.scheduler;
@@ -103,6 +104,7 @@ export class EntityCache<
         return this.scheduler;
     }
 
+    /* istanbul ignore next */
     stopScheduler() : void {
         if (!this.scheduler) return;
 
@@ -136,7 +138,7 @@ export class EntityCache<
             const expireSet: number = await this.context.redisDatabase.expire(idPath, seconds);
 
             if (expireSet === 0) {
-                await this.context.redisDatabase.set(idPath, seconds * 1000, 'EX', seconds);
+                await this.context.redisDatabase.set(idPath, 'true', 'EX', seconds);
             }
         } else {
             await this.context.redisDatabase.set(idPath, JSON.stringify(value), 'EX', seconds);
@@ -156,12 +158,13 @@ export class EntityCache<
 
             return JSON.parse(entry);
         } catch (e) {
+            /* istanbul ignore next */
             return undefined;
         }
     }
 
-    async drop(id: ID, context?: {key?: K}) : Promise<boolean> {
-        const idPath = this.buildRedisKey({ id, context: context.key });
+    async drop(id: ID, context?: K) : Promise<boolean> {
+        const idPath = this.buildRedisKey({ id, context });
 
         if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
             delete this.schedulerLastChecked[idPath];
@@ -173,7 +176,9 @@ export class EntityCache<
     //--------------------------------------------------------------------
 
     buildRedisKey(params: {id: ID, context?: K}) {
-        const keyPath = buildRedisKey(params, this.options);
-        return keyPath.length > 0 ? `cache${keyPath}` : 'cache';
+        return buildRedisKey(params, {
+            ...this.options,
+            prefix: `cache${this.options.prefix ? `.${this.options.prefix}` : ''}`,
+        });
     }
 }

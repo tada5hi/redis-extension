@@ -5,10 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type RedisKeyEntityID = string | number;
+export type RedisEntityID = string | number;
 export type RedisKeyContext = Record<string, any>;
 
 export type RedisKeyOptions = {
-    pathPrefix?: string,
-    pathSuffix?: string
+    prefix?: string,
+    suffix?: string
 };
