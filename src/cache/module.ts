@@ -12,7 +12,7 @@ import { RedisEntityID, RedisKeyContext } from '../type';
 import { extendEntityCacheDefaultOptions } from './utils';
 import { buildRedisKey } from '../utils';
 
-export declare interface EntityCache<
+export declare interface RedisCache<
     ID extends RedisEntityID,
     K extends RedisKeyContext = never,
 > {
