@@ -6,7 +6,7 @@
  */
 
 import { KeyOptions } from '../type';
-import { Client } from '../external';
+import { Client } from '../driver/type';
 
 export type CacheContext = {
     redis: Client

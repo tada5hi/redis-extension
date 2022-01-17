@@ -59,11 +59,11 @@ A singleton instance for a configuration associated to a given key, can be retri
 
 ```typescript
 import {
-    useInstance,
+    useClient,
     Client
 } from "redis-extension";
 
-const instance : Client = useInstance('key');
+const instance : Client = useClient('key');
 
 (async () => {
     await instance.set('key', 'value');
@@ -81,13 +81,13 @@ which can either be created with this library or with the underneath ioredis dri
 ```typescript
 import {
     Cache,
-    useInstance
+    useClient
 } from "redis-extension";
 
 (async () => {
     const cache = new Cache<number>(
         {
-            redis: useInstance('default')
+            redis: useClient('default')
         },
         {
             prefix: 'user'

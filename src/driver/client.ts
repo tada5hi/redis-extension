@@ -7,23 +7,23 @@
 
 import IORedis from 'ioredis';
 import { Config, useConfig } from '../config';
-import { Client } from '../external';
+import { Client } from './type';
 
 const instanceMap: Record<string, Client> = {};
 
-export function useInstance(alias = 'default') : Client {
+export function useClient(alias = 'default') : Client {
     const config = useConfig(alias);
 
     if (Object.prototype.hasOwnProperty.call(instanceMap, alias)) {
         return instanceMap[alias];
     }
 
-    instanceMap[alias] = createInstance(config);
+    instanceMap[alias] = createClient(config);
 
     return instanceMap[alias];
 }
 
-export function createInstance(config?: Config) : Client {
+export function createClient(config?: Config) : Client {
     config ??= {};
 
     return new IORedis(

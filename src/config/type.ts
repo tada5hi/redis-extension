@@ -5,9 +5,11 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ClientOptions } from '../external';
+import { ClientOptions, ClusterNode, ClusterOptions } from '../driver/type';
 
 export type Config = {
     options?: ClientOptions,
-    connectionString?: string
+    connectionString?: string,
+    clusterNodes?: ClusterNode[],
+    clusterOptions?: ClusterOptions
 };
