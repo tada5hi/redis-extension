@@ -20,7 +20,8 @@ This is a library to
 
 - [Installation](#installation)
 - [Usage](#usage)
-  - [Config & Instance](#config--instance)
+  - [Config](#config)
+  - [Singleton](#singleton)
   - [Cache](#cache)
   - [Tracker](#tracker)
 
@@ -32,10 +33,12 @@ npm install redis-extension --save
 
 ## Usage
 
-### Config & Instance
+### Config
 
-The config sub-module is required to register a configuration for a given key,
-like in the following example.
+To create a configuration for the driver `Client` or `Cluster`, a configuration must be specified,
+like described in the following:
+
+**Client**
 
 ```typescript
 import {
@@ -52,18 +55,57 @@ setConfig('key', {
 })
 ```
 
-The **options** property is used to pass information to the underneath driver (IORedis) and the **connectionString** (optional) property is a way
+A configuration is always identified by a string `key`,
+so multiple configurations can be registered.
+
+In the upper example, the **options** property is used to pass information to the underneath driver (IORedis) and the **connectionString** (optional) property is a way
 to specify the Redis server to which the driver should connect to.
 
-A singleton instance for a configuration associated to a given key, can be retrieved like described in the following:
+**Cluster**
 
 ```typescript
 import {
-    useClient,
-    Client
+    setConfig
 } from "redis-extension";
 
-const instance : Client = useClient('key');
+setConfig('key', {
+    clusterNodes: [
+        'redis://127.0.0.1'
+    ],
+    clusterOptions: {
+        // ...
+    }
+})
+```
+
+## Singleton
+
+A singleton instance associated for a given configuration key,
+can be acquired like described in the following:
+
+**Client**
+```typescript
+import {
+    useClient
+} from "redis-extension";
+
+const instance = useClient('key');
+
+(async () => {
+    await instance.set('key', 'value');
+    const payload = await instance.get('key');
+    console.log(payload);
+    // value
+})();
+```
+
+**Cluster**
+```typescript
+import {
+    useCluster
+} from "redis-extension";
+
+const instance = useCluster('key');
 
 (async () => {
     await instance.set('key', 'value');
@@ -114,5 +156,41 @@ import {
 ### Tracker
 
 ```typescript
+import {
+    Tracker,
+    useClient
+} from "redis-extension";
+
+(async () => {
+    const tracker = new Tracker<number>(
+        {
+            redis: useClient('default')
+        },
+        {
+            prefix: 'users-online'
+        }
+    );
+
+    // add user with id: 1 to the stack (time: 1642423766)
+    tracker.add(1);
+
+    // add user with id: 2 to the stack (time: 1642423866)
+    tracker.add(2);
+
+    const items = tracker.getMeta({
+        sort: 'DESC'
+    });
+
+    console.log(items);
+    // {
+    //      data: [
+    //          {id: 1, score: 1642423766},
+    //          {id: 2, score: 1642423866}
+    //      ],
+    //      meta: {}
+    // }
+})();
 
 ```
+
+The `score` property represents the unix timestamp, when the entry was added.

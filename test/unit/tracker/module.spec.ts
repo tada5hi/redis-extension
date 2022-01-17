@@ -16,7 +16,7 @@ describe('src/tracker/index.ts', function () {
             redis: new RealIORedis()
         });
 
-        expect(tracker.buildRedisKey({id: 'id'})).toEqual('tracker#id');
+        expect(tracker.buildKey({id: 'id'})).toEqual('tracker#id');
     });
 
     it('should add & count entries', async () => {
