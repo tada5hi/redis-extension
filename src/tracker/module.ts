@@ -39,7 +39,7 @@ export class Tracker<
         options ??= {};
         options.sort = options.sort || 'DESC';
 
-        let data : string[] = [];
+        let data : string[];
 
         if (typeof options.limit === 'undefined') {
             if (options.sort === 'DESC') {
