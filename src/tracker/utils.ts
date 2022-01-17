@@ -5,11 +5,11 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { RedisTrackerOptions } from './type';
-import { RedisKeyContext } from '../type';
+import { TrackerOptions } from './type';
+import { KeyContext } from '../type';
 
 export function extendRedisTrackerDefaultOptions<
-    T extends RedisKeyContext,
->(options: RedisTrackerOptions) : RedisTrackerOptions {
+    T extends KeyContext,
+>(options: TrackerOptions) : TrackerOptions {
     return options;
 }

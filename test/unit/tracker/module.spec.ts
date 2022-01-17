@@ -6,13 +6,13 @@
  */
 
 import RealIORedis from "ioredis-mock";
-import {RedisTracker} from "../../../src";
+import {Tracker} from "../../../src";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 
 describe('src/tracker/index.ts', function () {
     it('should build tracker path', () => {
-        const tracker = new RedisTracker<string>({
+        const tracker = new Tracker<string>({
             redis: new RealIORedis()
         });
 
@@ -20,7 +20,7 @@ describe('src/tracker/index.ts', function () {
     });
 
     it('should add & count entries', async () => {
-        const tracker = new RedisTracker<string>({
+        const tracker = new Tracker<string>({
             redis: new RealIORedis()
         });
 
@@ -34,7 +34,7 @@ describe('src/tracker/index.ts', function () {
     });
 
     it('should drop & count entries', async () => {
-        const tracker = new RedisTracker<string>({
+        const tracker = new Tracker<string>({
             redis: new RealIORedis()
         });
 
@@ -47,7 +47,7 @@ describe('src/tracker/index.ts', function () {
     });
 
     it('should set, get & drop meta', async () => {
-        const tracker = new RedisTracker<string>({
+        const tracker = new Tracker<string>({
             redis: new RealIORedis()
         });
 
@@ -69,7 +69,7 @@ describe('src/tracker/index.ts', function () {
     })
 
     it('should get entries', async () => {
-        const tracker = new RedisTracker<string>({
+        const tracker = new Tracker<string>({
             redis: new RealIORedis()
         });
 

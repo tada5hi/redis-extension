@@ -6,23 +6,23 @@
  */
 
 import {
-    RedisTrackerContext,
-    RedisTrackerItem,
-    RedisTrackerOptions,
+    TrackerContext,
+    TrackerItem,
+    TrackerOptions,
 } from './type';
 import { extendRedisTrackerDefaultOptions } from './utils';
-import { RedisEntityID, RedisKeyContext } from '../type';
-import { buildRedisKey } from '../utils';
+import { EntityID, KeyContext } from '../type';
+import { buildKey } from '../utils';
 
-export class RedisTracker<
-    ID extends RedisEntityID,
-    K extends RedisKeyContext = never,
+export class Tracker<
+    ID extends EntityID,
+    K extends KeyContext = never,
 > {
-    protected context: RedisTrackerContext;
+    protected context: TrackerContext;
 
-    protected options: RedisTrackerOptions;
+    protected options: TrackerOptions;
 
-    constructor(context: RedisTrackerContext, options?: RedisTrackerOptions) {
+    constructor(context: TrackerContext, options?: TrackerOptions) {
         options ??= {};
 
         this.context = context;
@@ -82,7 +82,7 @@ export class RedisTracker<
             }
         }
 
-        const items : RedisTrackerItem<ID>[] = [];
+        const items : TrackerItem<ID>[] = [];
 
         for (let i = 0; i < data.length; i += 2) {
             items.push({
@@ -155,7 +155,7 @@ export class RedisTracker<
     //--------------------------------------------------------------------
 
     buildRedisKey(params: {id?: ID, context?: K}) {
-        return buildRedisKey(params, {
+        return buildKey(params, {
             ...this.options,
             prefix: `tracker${this.options.prefix ? `.${this.options.prefix}` : ''}`,
         });

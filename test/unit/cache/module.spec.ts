@@ -6,11 +6,11 @@
  */
 
 import RealIORedis from "ioredis-mock";
-import {RedisCache} from "../../../src";
+import {Cache} from "../../../src";
 
 describe('src/cache/index.ts', function () {
     it('should build cache path', () => {
-        const cache = new RedisCache<string>({
+        const cache = new Cache<string>({
             redis: new RealIORedis()
         });
 
@@ -18,7 +18,7 @@ describe('src/cache/index.ts', function () {
     });
 
     it('should create & drop cache', async () => {
-        const cache = new RedisCache<string>({
+        const cache = new Cache<string>({
             redis: new RealIORedis()
         });
 
@@ -39,7 +39,7 @@ describe('src/cache/index.ts', function () {
     });
 
     it('should create & drop cache with no value', async () => {
-        const cache = new RedisCache<string>({
+        const cache = new Cache<string>({
             redis: new RealIORedis()
         });
 
@@ -52,7 +52,7 @@ describe('src/cache/index.ts', function () {
     });
 
     it('should create & drop cache with context', async () => {
-        const cache = new RedisCache<string, {realm_id: string}>({
+        const cache = new Cache<string, {realm_id: string}>({
             redis: new RealIORedis()
         });
 

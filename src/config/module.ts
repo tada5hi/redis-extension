@@ -6,29 +6,31 @@
  */
 
 import { mergeDeep } from '../utils';
-import { RedisConfig } from './type';
+import { Config } from './type';
 
-const configMap: Map<string, RedisConfig> = new Map<string, RedisConfig>();
+const configMap: Map<string, Config> = new Map<string, Config>();
 
-export function setRedisConfig(
+export function setConfig(
     key: string,
-    value: RedisConfig,
+    value: Config,
 ) {
     configMap.set(key, value);
 }
 
-export function getRedisConfig(
+export function useConfig(
     key: string,
-): RedisConfig {
-    const data: RedisConfig | undefined = configMap.get(key);
+): Config {
+    const data: Config | undefined = configMap.get(key);
     if (typeof data === 'undefined') {
-        return extendRedisConfig({});
+        return buildConfig();
     }
 
-    return extendRedisConfig(data);
+    return buildConfig(data);
 }
 
-export function extendRedisConfig(config: RedisConfig) : RedisConfig {
+export function buildConfig(config?: Config) : Config {
+    config ??= {};
+
     return mergeDeep({
         options: {
             enableReadyCheck: true,

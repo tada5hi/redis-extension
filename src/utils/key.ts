@@ -5,12 +5,12 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { RedisEntityID, RedisKeyContext, RedisKeyOptions } from '../type';
+import { EntityID, KeyContext, KeyOptions } from '../type';
 
-export function buildRedisKey<
-    I extends RedisEntityID = never,
-    C extends RedisKeyContext = never,
->(params?: {context?: C, id?: I}, options?: RedisKeyOptions) {
+export function buildKey<
+    I extends EntityID = never,
+    C extends KeyContext = never,
+>(params?: {context?: C, id?: I}, options?: KeyOptions) {
     params ??= {};
     options ??= {};
 

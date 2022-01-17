@@ -7,14 +7,13 @@
 
 import { EventEmitter } from 'events';
 import { Job, scheduleJob } from 'node-schedule';
-import { EntityCacheContext, EntityCacheOptions } from './type';
-import { RedisEntityID, RedisKeyContext } from '../type';
-import { extendEntityCacheDefaultOptions } from './utils';
-import { buildRedisKey } from '../utils';
+import { CacheContext, CacheOptions } from './type';
+import { EntityID, KeyContext } from '../type';
+import { buildKey } from '../utils';
 
-export declare interface RedisCache<
-    ID extends RedisEntityID,
-    K extends RedisKeyContext = never,
+export declare interface Cache<
+    ID extends EntityID,
+    K extends KeyContext = never,
 > {
     on(event: 'expired', listener: (key: string) => void): this;
     on(event: 'failed', listener: (key: string) => void): this;
@@ -24,9 +23,9 @@ export declare interface RedisCache<
     on(event: string, listener: CallableFunction): this;
 }
 
-export class RedisCache<
-    ID extends RedisEntityID,
-    K extends RedisKeyContext = never,
+export class Cache<
+    ID extends EntityID,
+    K extends KeyContext = never,
 > extends EventEmitter {
     protected scheduler : Job | undefined;
 
@@ -34,19 +33,19 @@ export class RedisCache<
 
     protected schedulerLastChecked : Record<string, number> = {};
 
-    protected context : EntityCacheContext;
+    protected context : CacheContext;
 
-    protected options : EntityCacheOptions;
+    protected options : CacheOptions;
 
     //--------------------------------------------------------------------
 
-    constructor(context: EntityCacheContext, options?: EntityCacheOptions) {
+    constructor(context: CacheContext, options?: CacheOptions) {
         super();
 
         options ??= {};
 
         this.context = context;
-        this.options = extendEntityCacheDefaultOptions(options);
+        this.options = options;
     }
 
     //--------------------------------------------------------------------
@@ -182,7 +181,7 @@ export class RedisCache<
     //--------------------------------------------------------------------
 
     buildRedisKey(params: {id: ID, context?: K}) {
-        return buildRedisKey(params, {
+        return buildKey(params, {
             ...this.options,
             prefix: `cache${this.options.prefix ? `.${this.options.prefix}` : ''}`,
         });

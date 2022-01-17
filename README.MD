@@ -39,10 +39,10 @@ like in the following example.
 
 ```typescript
 import {
-    setRedisConfig
+    setConfig
 } from "redis-extension";
 
-setRedisConfig('key', {
+setConfig('key', {
     connectionString: 'redis://127.0.0.1',
     options: {
         reconnectOnError(error: Error): boolean {
@@ -59,11 +59,11 @@ A singleton instance for a configuration associated to a given key, can be retri
 
 ```typescript
 import {
-    useRedisInstance,
-    Redis
+    useInstance,
+    Client
 } from "redis-extension";
 
-const instance : Redis = useRedisInstance('key');
+const instance : Client = useInstance('key');
 
 (async () => {
     await instance.set('key', 'value');
@@ -80,14 +80,14 @@ which can either be created with this library or with the underneath ioredis dri
 
 ```typescript
 import {
-    RedisCache,
-    useRedisInstance
+    Cache,
+    useInstance
 } from "redis-extension";
 
 (async () => {
-    const cache = new RedisCache<number>(
+    const cache = new Cache<number>(
         {
-            redis: useRedisInstance('default')
+            redis: useInstance('default')
         },
         {
             prefix: 'user'

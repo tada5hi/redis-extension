@@ -5,24 +5,27 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import IORedis, { Redis } from 'ioredis';
-import { RedisConfig, getRedisConfig } from '../config';
+import IORedis from 'ioredis';
+import { Config, useConfig } from '../config';
+import { Client } from '../external';
 
-const instanceMap: Record<string, Redis> = {};
+const instanceMap: Record<string, Client> = {};
 
-export function useRedisInstance(alias = 'default') : Redis {
-    const config = getRedisConfig(alias);
+export function useInstance(alias = 'default') : Client {
+    const config = useConfig(alias);
 
     if (Object.prototype.hasOwnProperty.call(instanceMap, alias)) {
         return instanceMap[alias];
     }
 
-    instanceMap[alias] = createRedisInstance(config);
+    instanceMap[alias] = createInstance(config);
 
     return instanceMap[alias];
 }
 
-export function createRedisInstance(config: RedisConfig) : Redis {
+export function createInstance(config?: Config) : Client {
+    config ??= {};
+
     return new IORedis(
         config.connectionString,
         config.options,

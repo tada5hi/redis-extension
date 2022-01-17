@@ -5,13 +5,13 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Redis } from 'ioredis';
-import { RedisKeyOptions } from '../type';
+import { KeyOptions } from '../type';
+import { Client } from '../external';
 
-export type EntityCacheContext = {
-    redis: Redis
+export type CacheContext = {
+    redis: Client
 };
 
-export type EntityCacheOptions = RedisKeyOptions & {
+export type CacheOptions = KeyOptions & {
     seconds?: number
 };
