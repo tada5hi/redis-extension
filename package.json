@@ -50,7 +50,7 @@
         "coveralls": "^3.1.0",
         "cross-env": "^7.0.3",
         "eslint": "^8.7.0",
-        "ioredis-mock": "^5.8.1",
+        "ioredis-mock": "^5.8.4",
         "jest": "^27.4.7",
         "np": "^7.6.0",
         "ts-jest": "^27.1.3",
