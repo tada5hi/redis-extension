@@ -128,29 +128,39 @@ import {
 } from "redis-extension";
 
 (async () => {
-    const cache = new Cache<number>(
+    type User = {
+        id: number,
+        name: string,
+        realm_id: string
+    };
+
+    const cache = new Cache<number, User>(
         {
             redis: useClient('default')
         },
         {
-            prefix: 'user'
+            prefix: 'user',
+            context: {
+                realm_id: 'master'
+            }
         }
     );
 
     // Register events
-    cache.on('expired', (key: string) => {
-        console.log(`Redis key ${key} expired...`);
-    });
+    cache.on('expired', (data) => {
+        console.log(data);
+        // { id: 'foo', prefix: 'user', context: {realm_id: 'master'}
 
-    cache.on('failed', (key: string) => {
-        console.log(`Redis cache check failed for ${key}...`);
+        // Important: The value will not be part of the expired event payload!
     });
 
     // Start scheduler to watch cached entries and trigger specific events.
-    cache.startScheduler();
+    await cache.startScheduler();
 
     await cache.set('foo', 'bar');
     const payload = cache.get('foo');
+    console.log(payload);
+    // bar
 });
 ```
 
