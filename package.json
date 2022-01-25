@@ -41,7 +41,6 @@
     "homepage": "https://github.com/Tada5hi/redis-extension#readme",
     "devDependencies": {
         "@tada5hi/eslint-config-typescript": "^0.0.24",
-        "@types/ioredis": "^4.28.7",
         "@types/ioredis-mock": "^5.6.0",
         "@types/jest": "^27.4.0",
         "@types/node": "^17.0.10",
@@ -57,6 +56,7 @@
         "typescript": "^4.5.5"
     },
     "dependencies": {
+        "@types/ioredis": "^4.28.7",
         "ioredis": "^4.28.3",
         "node-schedule": "^2.1.0"
     }
