@@ -6,40 +6,26 @@
  */
 
 import { EventEmitter } from 'events';
-import { Job, scheduleJob } from 'node-schedule';
 import { CacheContext, CacheOptions } from './type';
-import { EntityID, KeyContext } from '../type';
-import { buildKey } from '../utils';
-
-export declare interface Cache<
-    ID extends EntityID,
-    K extends KeyContext = never,
-> {
-    on(event: 'expired', listener: (key: string) => void): this;
-    on(event: 'failed', listener: (key: string) => void): this;
-    on(event: 'updated', listener: (key: string) => void): this;
-    on(event: 'started', listener: (key: string) => void): this;
-    on(event: 'stopped', listener: (key: string) => void): this;
-    on(event: string, listener: CallableFunction): this;
-}
+import { KeyOptions, KeyPathID, KeyReference } from '../type';
+import { CacheScheduler } from './sheduler';
+import { buildKeyPath } from '../utils';
 
 export class Cache<
-    ID extends EntityID,
-    K extends KeyContext = never,
+    K extends string | number = string | number,
+    O extends KeyReference = never,
 > extends EventEmitter {
-    protected scheduler : Job | undefined;
-
-    protected schedulerLocked = false;
+    protected scheduler : CacheScheduler<K, O> | undefined;
 
     protected schedulerLastChecked : Record<string, number> = {};
 
     protected context : CacheContext;
 
-    protected options : CacheOptions;
+    protected options : CacheOptions<K, O>;
 
     //--------------------------------------------------------------------
 
-    constructor(context: CacheContext, options?: CacheOptions) {
+    constructor(context: CacheContext, options?: CacheOptions<K, O>) {
         super();
 
         options ??= {};
@@ -51,69 +37,27 @@ export class Cache<
     //--------------------------------------------------------------------
 
     /* istanbul ignore next */
-    startScheduler() : Job {
+    async startScheduler() : Promise<CacheScheduler<K, O>> {
         if (typeof this.scheduler !== 'undefined') {
             return this.scheduler;
         }
 
-        this.scheduler = scheduleJob('*/5 * * * * *', async () => {
-            if (this.schedulerLocked) return;
+        const scheduler = new CacheScheduler<K, O>({
+            redis: this.context.redis,
+        }, this.buildOptions());
 
-            this.schedulerLocked = true;
-
-            const ttlPipeline = this.context.redis.pipeline();
-
-            let expireKeys = Object.keys(this.schedulerLastChecked);
-            expireKeys = expireKeys.filter((expireKey) => this.schedulerLastChecked[expireKey] <= parseInt(new Date().getTime().toFixed(), 10));
-
-            for (let i = 0; i < expireKeys.length; i++) {
-                ttlPipeline.ttl(expireKeys[i]);
-            }
-
-            const result = await ttlPipeline.exec();
-
-            const delPipeline = this.context.redis.pipeline();
-
-            for (let i = 0; i < expireKeys.length; i++) {
-                const [err, time] = result[i] ? result[i] : undefined;
-                if (err) {
-                    this.emit('failed', expireKeys[i]);
-                    if (this.schedulerLastChecked[expireKeys[i]]) {
-                        delete this.schedulerLastChecked[expireKeys[i]];
-                    }
-
-                    continue;
-                }
-
-                if (time > 0) {
-                    this.schedulerLastChecked[expireKeys[i]] = parseInt((new Date().getTime() + 7500).toFixed(), 10);
-                    this.emit('updated', expireKeys[i]);
-                } else {
-                    delPipeline.del(expireKeys[i]);
-
-                    if (this.schedulerLastChecked[expireKeys[i]]) {
-                        delete this.schedulerLastChecked[expireKeys[i]];
-                    }
-
-                    this.emit('expired', expireKeys[i]);
-                }
-            }
-
-            await delPipeline.exec();
-
-            this.schedulerLocked = false;
-        });
+        await scheduler.start();
 
         this.emit('started');
 
-        return this.scheduler;
+        return scheduler;
     }
 
     /* istanbul ignore next */
-    stopScheduler() : void {
+    async stopScheduler() : Promise<void> {
         if (!this.scheduler) return;
 
-        this.scheduler.cancel(false);
+        await this.scheduler.stop();
         this.scheduler = undefined;
 
         this.emit('stopped');
@@ -121,8 +65,8 @@ export class Cache<
 
     //--------------------------------------------------------------------
 
-    async isExpired(id: ID, context?: K) : Promise<boolean> {
-        const idPath = this.buildRedisKey({ id, context });
+    async isExpired(id: KeyPathID<K, O>, context?: O) : Promise<boolean> {
+        const idPath = this.buildKey({ id, context });
 
         if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
             return false;
@@ -133,10 +77,10 @@ export class Cache<
         return ttl <= 0;
     }
 
-    async set(id: ID, value?: any, options?: {seconds?: number, context?: K}) {
+    async set(id: KeyPathID<K, O>, value?: any, options?: {seconds?: number, context?: O}) {
         options ??= {};
 
-        const idPath = this.buildRedisKey({ id, context: options.context });
+        const idPath = this.buildKey({ id, context: options.context });
         const seconds = options.seconds ?? this.options.seconds ?? 300;
 
         if (typeof value === 'undefined') {
@@ -152,8 +96,8 @@ export class Cache<
         this.schedulerLastChecked[idPath] = new Date().getTime() + (seconds * 1000);
     }
 
-    async get(id: ID, context?: K) : Promise<undefined | any> {
-        const idPath = this.buildRedisKey({ id, context });
+    async get(id: KeyPathID<K, O>, context?: O) : Promise<undefined | any> {
+        const idPath = this.buildKey({ id, context });
 
         try {
             const entry = await this.context.redis.get(idPath);
@@ -168,8 +112,8 @@ export class Cache<
         }
     }
 
-    async drop(id: ID, context?: K) : Promise<boolean> {
-        const idPath = this.buildRedisKey({ id, context });
+    async drop(id: KeyPathID<K, O>, context?: O) : Promise<boolean> {
+        const idPath = this.buildKey({ id, context });
 
         if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
             delete this.schedulerLastChecked[idPath];
@@ -180,10 +124,17 @@ export class Cache<
 
     //--------------------------------------------------------------------
 
-    buildRedisKey(params: {id: ID, context?: K}) {
-        return buildKey(params, {
+    buildKey(options: KeyOptions<K, O>) {
+        return buildKeyPath(this.buildOptions(options));
+    }
+
+    buildOptions(options?: KeyOptions<K, O>) : CacheOptions<K, O> {
+        options ??= {};
+
+        return {
             ...this.options,
+            ...options,
             prefix: `cache${this.options.prefix ? `.${this.options.prefix}` : ''}`,
-        });
+        } as CacheOptions<K, O>;
     }
 }

@@ -5,13 +5,16 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { KeyOptions } from '../type';
+import { KeyOptions, KeyReference } from '../type';
 import { Client } from '../driver/type';
 
 export type CacheContext = {
     redis: Client
 };
 
-export type CacheOptions = KeyOptions & {
+export type CacheOptions<
+    K extends string | number = string | number,
+    O extends KeyReference = never,
+> = KeyOptions<K, O> & {
     seconds?: number
 };

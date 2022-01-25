@@ -1,32 +1,33 @@
 /*
- * Copyright (c) 2021-2021.
+ * Copyright (c) 2021-2022.
  * Author Peter Placzek (tada5hi)
  * For the full copyright and license information,
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { buildKey } from "../../../src";
+import { buildKeyPath } from "../../../../src";
 
 describe('src/utils/key.ts', function () {
     it('should build path', () => {
 
-        let buildPath = buildKey();
+        let buildPath = buildKeyPath({});
         expect(buildPath).toEqual('');
 
-        buildPath = buildKey({id: 'id'});
+        buildPath = buildKeyPath({id: 'id'});
 
         expect(buildPath).toEqual('#id');
     })
 
     it('should build path with prefix & suffix', () => {
-        let buildPath = buildKey({}, {
+        let buildPath = buildKeyPath( {
             prefix: 'prefix',
             suffix: 'suffix'
         });
 
         expect(buildPath).toEqual('prefix.suffix');
 
-        buildPath = buildKey({id: 'id'}, {
+        buildPath = buildKeyPath({
+            id: 'id',
             prefix: 'prefix',
             suffix: 'suffix'
         });
@@ -35,27 +36,30 @@ describe('src/utils/key.ts', function () {
     });
 
     it('should build path with context', () => {
-        let buildPath = buildKey({context: {realm_id: 'master'}});
+        let buildPath = buildKeyPath({context: {realm_id: 'master'}});
         expect(buildPath).toEqual('{realm_id:master}');
 
-        buildPath = buildKey({id: 'id', context: {realm_id: 'master'}});
+        buildPath = buildKeyPath({id: 'id', context: {realm_id: 'master'}});
 
         expect(buildPath).toEqual('{realm_id:master}#id');
     })
 
     it('should build path with context, prefix & suffix', () => {
-        let buildPath = buildKey({context: {realm_id: 'master'}}, {
+        let buildPath = buildKeyPath( {
+            context: {realm_id: 'master'},
             prefix: 'prefix',
             suffix: 'suffix'
         });
 
-        expect(buildPath).toEqual('prefix.{realm_id:master}.suffix');
+        expect(buildPath).toEqual('prefix{realm_id:master}.suffix');
 
-        buildPath = buildKey({id: 'id', context: {realm_id: 'master'}}, {
+        buildPath = buildKeyPath({
+            id: 'id',
+            context: {realm_id: 'master'},
             prefix: 'prefix',
             suffix: 'suffix'
         });
 
-        expect(buildPath).toEqual('prefix.{realm_id:master}#id.suffix');
+        expect(buildPath).toEqual('prefix{realm_id:master}#id.suffix');
     })
 });

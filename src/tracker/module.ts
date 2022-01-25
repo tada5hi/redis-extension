@@ -10,32 +10,31 @@ import {
     TrackerItem,
     TrackerOptions,
 } from './type';
-import { extendRedisTrackerDefaultOptions } from './utils';
-import { EntityID, KeyContext } from '../type';
-import { buildKey } from '../utils';
+import { KeyOptions, KeyPathID, KeyReference } from '../type';
+import { buildKeyPath } from '../utils';
 
 export class Tracker<
-    ID extends EntityID,
-    K extends KeyContext = never,
+    K extends string | number = string | number,
+    O extends KeyReference = never,
 > {
     protected context: TrackerContext;
 
-    protected options: TrackerOptions;
+    protected options: TrackerOptions<K, O>;
 
-    constructor(context: TrackerContext, options?: TrackerOptions) {
+    constructor(context: TrackerContext, options?: TrackerOptions<K, O>) {
         options ??= {};
 
         this.context = context;
-        this.options = extendRedisTrackerDefaultOptions(options);
+        this.options = options;
     }
 
     //--------------------------------------------------------------------
 
-    async getTotal(context?: K) : Promise<number | undefined> {
+    async getTotal(context?: O) : Promise<number | undefined> {
         return this.context.redis.zcard(this.buildKey({ context }));
     }
 
-    async getMany(options?: {context?: K, limit?: number, offset?: number, sort?: 'ASC' | 'DESC'}) {
+    async getMany(options?: {context?: O, limit?: number, offset?: number, sort?: 'ASC' | 'DESC'}) {
         options ??= {};
         options.sort = options.sort || 'DESC';
 
@@ -82,11 +81,11 @@ export class Tracker<
             }
         }
 
-        const items : TrackerItem<ID>[] = [];
+        const items : TrackerItem<KeyPathID<K, O>>[] = [];
 
         for (let i = 0; i < data.length; i += 2) {
             items.push({
-                id: data[i] as unknown as ID,
+                id: data[i] as unknown as KeyPathID<K, O>, // todo: maybe str -> number
                 score: parseInt(data[i + 1], 10),
             });
         }
@@ -102,13 +101,13 @@ export class Tracker<
 
     //--------------------------------------------------------------------
 
-    async add(id: ID, options?: {context?: K, meta?: Record<string, any>}) {
+    async add(id: KeyPathID<K, O>, options?: {context?: O, meta?: Record<string, any>}) {
         options ??= {};
 
         await this.context.redis.zadd(
             this.buildKey({ context: options.context }),
             parseInt(Date.now().toFixed(), 10),
-            id,
+            `${id}`,
         );
 
         if (options.meta) {
@@ -116,26 +115,26 @@ export class Tracker<
         }
     }
 
-    async drop(id: ID, key?: K) {
+    async drop(id: KeyPathID<K, O>, context?: O) {
         await this.context.redis.zrem(
-            this.buildKey({ context: key }),
-            id,
+            this.buildKey({ context }),
+            `${id}`,
         );
 
-        await this.dropMeta(id, key);
+        await this.dropMeta(id, context);
     }
 
     //--------------------------------------------------------------------
 
-    public async setMeta(id: ID, meta: Record<string, any>, context?: K) {
+    public async setMeta(id: KeyPathID<K, O>, meta: Record<string, any>, context?: O) {
         await this.context.redis.hset(
             this.buildMetaKey(context),
-            id,
+            `${id}`,
             JSON.stringify(meta),
         );
     }
 
-    public async getMeta(id: ID, context?: K) : Promise<Record<string, any> | undefined> {
+    public async getMeta(id: KeyPathID<K, O>, context?: O) : Promise<Record<string, any> | undefined> {
         const data = await this.context.redis.hget(
             this.buildMetaKey(context),
             `${id}`,
@@ -148,20 +147,21 @@ export class Tracker<
         return JSON.parse(data);
     }
 
-    public async dropMeta(id: ID, context?: K) {
+    public async dropMeta(id: KeyPathID<K, O>, context?: O) {
         await this.context.redis.hdel(this.buildMetaKey(context), `${id}`);
     }
 
     //--------------------------------------------------------------------
 
-    buildKey(params: {id?: ID, context?: K}) {
-        return buildKey(params, {
+    buildKey(options: KeyOptions<K, O>) {
+        return buildKeyPath({
             ...this.options,
+            ...options,
             prefix: `tracker${this.options.prefix ? `.${this.options.prefix}` : ''}`,
         });
     }
 
-    buildMetaKey(context?: K) {
+    buildMetaKey(context?: O) {
         return `${this.buildKey({ context })}.meta`;
     }
 }

@@ -14,7 +14,7 @@ describe('src/cache/index.ts', function () {
             redis: new RealIORedis()
         });
 
-        expect(cache.buildRedisKey({id: 'id'})).toEqual('cache#id');
+        expect(cache.buildKey({id: 'id'})).toEqual('cache#id');
     });
 
     it('should create & drop cache', async () => {
