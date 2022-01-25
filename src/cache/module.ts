@@ -7,17 +7,27 @@
 
 import { EventEmitter } from 'events';
 import { CacheContext, CacheOptions } from './type';
-import { KeyOptions, KeyPathID, KeyReference } from '../type';
+import {
+    KeyOptions, KeyPathID, KeyPathParseResult, KeyReference,
+} from '../type';
 import { CacheScheduler } from './sheduler';
 import { buildKeyPath } from '../utils';
+
+export declare interface Cache<
+    K extends string | number = string | number,
+    O extends KeyReference = never,
+    > {
+    on(event: 'expired', listener: (key: KeyPathParseResult<K, O>) => void): this;
+    on(event: 'started', listener: () => void): this;
+    on(event: 'stopped', listener: () => void): this;
+    on(event: string, listener: CallableFunction): this;
+}
 
 export class Cache<
     K extends string | number = string | number,
     O extends KeyReference = never,
 > extends EventEmitter {
     protected scheduler : CacheScheduler<K, O> | undefined;
-
-    protected schedulerLastChecked : Record<string, number> = {};
 
     protected context : CacheContext;
 
@@ -37,9 +47,9 @@ export class Cache<
     //--------------------------------------------------------------------
 
     /* istanbul ignore next */
-    async startScheduler() : Promise<CacheScheduler<K, O>> {
+    async startScheduler() : Promise<void> {
         if (typeof this.scheduler !== 'undefined') {
-            return this.scheduler;
+            return;
         }
 
         const scheduler = new CacheScheduler<K, O>({
@@ -48,9 +58,13 @@ export class Cache<
 
         await scheduler.start();
 
-        this.emit('started');
+        scheduler.on('expired', (data) => {
+            this.emit('expired', data);
+        });
 
-        return scheduler;
+        this.scheduler = scheduler;
+
+        this.emit('started');
     }
 
     /* istanbul ignore next */
@@ -67,10 +81,6 @@ export class Cache<
 
     async isExpired(id: KeyPathID<K, O>, context?: O) : Promise<boolean> {
         const idPath = this.buildKey({ id, context });
-
-        if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
-            return false;
-        }
 
         const ttl = await this.context.redis.ttl(idPath);
 
@@ -92,8 +102,6 @@ export class Cache<
         } else {
             await this.context.redis.set(idPath, JSON.stringify(value), 'EX', seconds);
         }
-
-        this.schedulerLastChecked[idPath] = new Date().getTime() + (seconds * 1000);
     }
 
     async get(id: KeyPathID<K, O>, context?: O) : Promise<undefined | any> {
@@ -115,10 +123,6 @@ export class Cache<
     async drop(id: KeyPathID<K, O>, context?: O) : Promise<boolean> {
         const idPath = this.buildKey({ id, context });
 
-        if (Object.prototype.hasOwnProperty.call(this.schedulerLastChecked, idPath)) {
-            delete this.schedulerLastChecked[idPath];
-        }
-
         return await this.context.redis.del(idPath) === 1;
     }
 
@@ -134,7 +138,7 @@ export class Cache<
         return {
             ...this.options,
             ...options,
-            prefix: `cache${this.options.prefix ? `.${this.options.prefix}` : ''}`,
+            prefix: this.options.prefix || 'cache',
         } as CacheOptions<K, O>;
     }
 }

@@ -20,8 +20,6 @@ export declare interface CacheScheduler<
     O extends KeyReference = never,
 > {
     on(event: 'expired', listener: (key: KeyPathParseResult<K, O>) => void): this;
-    on(event: 'started', listener: () => void): this;
-    on(event: 'stopped', listener: () => void): this;
     on(event: string, listener: CallableFunction): this;
 }
 
@@ -75,8 +73,6 @@ export class CacheScheduler<
         });
 
         this.subscriber = subscriber;
-
-        this.emit('started');
     }
 
     async stop() {
@@ -84,8 +80,6 @@ export class CacheScheduler<
 
         await this.subscriber.punsubscribe(['__key*__:*']);
         this.subscriber = undefined;
-
-        this.emit('stopped');
     }
 
     parseKey(key: string) {

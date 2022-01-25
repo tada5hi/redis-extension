@@ -157,7 +157,7 @@ export class Tracker<
         return buildKeyPath({
             ...this.options,
             ...options,
-            prefix: `tracker${this.options.prefix ? `.${this.options.prefix}` : ''}`,
+            prefix: this.options.prefix || 'tracker',
         });
     }
 
