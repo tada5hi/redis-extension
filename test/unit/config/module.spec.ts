@@ -9,9 +9,9 @@ import {useConfig, setConfig} from "../../../src";
 
 describe('src/config', () => {
     it('should set & get redis config', () => {
-        setConfig('default', {
+        setConfig({
             connectionString: 'foo'
-        });
+        }, 'default');
 
         let redisConfig = useConfig('default');
         expect(redisConfig).toBeDefined();
@@ -28,7 +28,7 @@ describe('src/config', () => {
     });
 
     it('should set & get redis config with options', () => {
-        setConfig('default', {
+        setConfig({
             options: {
                 role: "master"
             }

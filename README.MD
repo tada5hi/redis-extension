@@ -46,17 +46,17 @@ import {
     setConfig
 } from "redis-extension";
 
-setConfig('key', {
+setConfig({
     connectionString: 'redis://127.0.0.1',
     options: {
         reconnectOnError(error: Error): boolean {
             return true;
         }
     }
-})
+}, 'alias');
 ```
 
-A configuration is always identified by a string `key`,
+A configuration is always identified by a string, in this example: `alias` (default: `default`),
 so multiple configurations can be registered.
 
 In the upper example, the **options** property is used to pass information to the underneath driver (IORedis) and the **connectionString** (optional) property is a way
@@ -69,14 +69,14 @@ import {
     setConfig
 } from "redis-extension";
 
-setConfig('key', {
+setConfig({
     clusterNodes: [
         'redis://127.0.0.1'
     ],
     clusterOptions: {
         // ...
     }
-})
+}, 'alias');
 ```
 
 ## Singleton
@@ -90,11 +90,11 @@ import {
     useClient
 } from "redis-extension";
 
-const instance = useClient('key');
+const client = useClient('alias');
 
 (async () => {
-    await instance.set('key', 'value');
-    const payload = await instance.get('key');
+    await client.set('key', 'value');
+    const payload = await client.get('key');
     console.log(payload);
     // value
 })();
@@ -106,11 +106,11 @@ import {
     useCluster
 } from "redis-extension";
 
-const instance = useCluster('key');
+const cluster = useCluster('alias');
 
 (async () => {
-    await instance.set('key', 'value');
-    const payload = await instance.get('key');
+    await cluster.set('key', 'value');
+    const payload = await cluster.get('key');
     console.log(payload);
     // value
 })();
@@ -136,7 +136,7 @@ import {
 
     const cache = new Cache<number, User>(
         {
-            redis: useClient('default')
+            redis: useClient()
         },
         {
             prefix: 'user',
@@ -175,7 +175,7 @@ import {
 (async () => {
     const tracker = new Tracker<number>(
         {
-            redis: useClient('default')
+            redis: useClient()
         },
         {
             prefix: 'users-online'

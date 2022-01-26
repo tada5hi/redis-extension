@@ -11,7 +11,9 @@ import { Client } from './type';
 
 const instanceMap: Record<string, Client> = {};
 
-export function useClient(alias = 'default') : Client {
+export function useClient(alias?: string) : Client {
+    alias = alias || 'default';
+
     const config = useConfig(alias);
 
     if (Object.prototype.hasOwnProperty.call(instanceMap, alias)) {

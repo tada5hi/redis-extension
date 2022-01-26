@@ -11,15 +11,19 @@ import { Config } from './type';
 const configMap: Map<string, Config> = new Map<string, Config>();
 
 export function setConfig(
-    key: string,
     value: Config,
+    key?: string,
 ) {
+    key = key || 'default';
+
     configMap.set(key, value);
 }
 
 export function useConfig(
-    key: string,
+    key?: string,
 ): Config {
+    key = key || 'default';
+
     const data: Config | undefined = configMap.get(key);
     if (typeof data === 'undefined') {
         return buildConfig();
