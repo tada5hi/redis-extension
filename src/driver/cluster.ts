@@ -11,7 +11,9 @@ import { Cluster, ClusterNode } from './type';
 
 const instanceMap: Record<string, Cluster> = {};
 
-export function useCluster(alias = 'default') : Cluster {
+export function useCluster(alias?: string) : Cluster {
+    alias = alias || 'default';
+
     const config = useConfig(alias);
 
     if (Object.prototype.hasOwnProperty.call(instanceMap, alias)) {
