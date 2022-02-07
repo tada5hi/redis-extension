@@ -57,7 +57,7 @@
     },
     "dependencies": {
         "@types/ioredis": "^4.28.7",
-        "ioredis": "^4.28.3",
+        "ioredis": "^4.28.5",
         "node-schedule": "^2.1.0"
     }
 }
