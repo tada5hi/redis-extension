@@ -25,6 +25,14 @@ export function useCluster(alias?: string) : Cluster {
     return instanceMap[alias];
 }
 
+export function setCluster(value: Cluster, alias?: string) : Cluster {
+    alias = alias || 'default';
+
+    instanceMap[alias] = value;
+
+    return instanceMap[alias];
+}
+
 export function createCluster(config?: Config) : Cluster {
     config ??= {};
 

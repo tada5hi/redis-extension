@@ -25,6 +25,14 @@ export function useClient(alias?: string) : Client {
     return instanceMap[alias];
 }
 
+export function setClient(value: Client, alias?: string) : Client {
+    alias = alias || 'default';
+
+    instanceMap[alias] = value;
+
+    return instanceMap[alias];
+}
+
 export function createClient(config?: Config) : Client {
     config ??= {};
 
