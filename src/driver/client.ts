@@ -9,28 +9,36 @@ import IORedis from 'ioredis';
 import { Config, useConfig } from '../config';
 import { Client } from './type';
 
-const instanceMap: Record<string, Client> = {};
+const getAlias = (key?: string) => key || 'default';
+
+const instances: Record<string, Client> = {};
 
 export function useClient(alias?: string) : Client {
-    alias = alias || 'default';
+    alias = getAlias(alias);
 
     const config = useConfig(alias);
 
-    if (Object.prototype.hasOwnProperty.call(instanceMap, alias)) {
-        return instanceMap[alias];
+    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
+        return instances[alias];
     }
 
-    instanceMap[alias] = createClient(config);
+    instances[alias] = createClient(config);
 
-    return instanceMap[alias];
+    return instances[alias];
+}
+
+export function hasClient(alias?: string) {
+    alias = getAlias(alias);
+
+    return Object.prototype.hasOwnProperty.call(instances, alias);
 }
 
 export function setClient(value: Client, alias?: string) : Client {
-    alias = alias || 'default';
+    alias = getAlias(alias);
 
-    instanceMap[alias] = value;
+    instances[alias] = value;
 
-    return instanceMap[alias];
+    return instances[alias];
 }
 
 export function createClient(config?: Config) : Client {

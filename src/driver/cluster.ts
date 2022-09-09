@@ -9,28 +9,36 @@ import IORedis from 'ioredis';
 import { Config, useConfig } from '../config';
 import { Cluster, ClusterNode } from './type';
 
-const instanceMap: Record<string, Cluster> = {};
+const getAlias = (alias?: string) => alias || 'default';
+
+const instances: Record<string, Cluster> = {};
 
 export function useCluster(alias?: string) : Cluster {
-    alias = alias || 'default';
+    alias = getAlias(alias);
 
     const config = useConfig(alias);
 
-    if (Object.prototype.hasOwnProperty.call(instanceMap, alias)) {
-        return instanceMap[alias];
+    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
+        return instances[alias];
     }
 
-    instanceMap[alias] = createCluster(config);
+    instances[alias] = createCluster(config);
 
-    return instanceMap[alias];
+    return instances[alias];
 }
 
 export function setCluster(value: Cluster, alias?: string) : Cluster {
-    alias = alias || 'default';
+    alias = getAlias(alias);
 
-    instanceMap[alias] = value;
+    instances[alias] = value;
 
-    return instanceMap[alias];
+    return instances[alias];
+}
+
+export function hasCluster(alias?: string) {
+    alias = getAlias(alias);
+
+    return Object.prototype.hasOwnProperty.call(instances, alias);
 }
 
 export function createCluster(config?: Config) : Cluster {

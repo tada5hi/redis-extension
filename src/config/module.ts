@@ -8,28 +8,31 @@
 import { mergeDeep } from '../utils';
 import { Config } from './type';
 
-const configMap: Map<string, Config> = new Map<string, Config>();
+const getAlias = (alias?: string) => alias || 'default';
+
+const instances : Record<string, Config> = {};
 
 export function setConfig(
     value: Config,
-    key?: string,
+    alias?: string,
 ) {
-    key = key || 'default';
+    alias = getAlias(alias);
 
-    configMap.set(key, value);
+    instances[alias] = value;
+}
+
+export function hasConfig(alias?: string) {
+    alias = getAlias(alias);
+
+    return Object.prototype.hasOwnProperty.call(instances, alias);
 }
 
 export function useConfig(
-    key?: string,
+    alias?: string,
 ): Config {
-    key = key || 'default';
+    alias = getAlias(alias);
 
-    const data: Config | undefined = configMap.get(key);
-    if (typeof data === 'undefined') {
-        return buildConfig();
-    }
-
-    return buildConfig(data);
+    return buildConfig(instances[alias] || {});
 }
 
 export function buildConfig(config?: Config) : Config {
