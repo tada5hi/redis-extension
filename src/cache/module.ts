@@ -6,12 +6,12 @@
  */
 
 import { EventEmitter } from 'events';
+import { Redis } from 'ioredis';
 import { CacheContext, CacheOptions } from './type';
 import {
     KeyOptions, KeyPathID, KeyPathParseResult, KeyReference,
 } from '../type';
-import { CacheScheduler } from './sheduler';
-import { buildKeyPath } from '../utils';
+import { buildKeyPath, parseKeyPath } from '../utils';
 
 export declare interface Cache<
     K extends string | number = string | number,
@@ -20,6 +20,7 @@ export declare interface Cache<
     on(event: 'expired', listener: (key: KeyPathParseResult<K, O>) => void): this;
     on(event: 'started', listener: () => void): this;
     on(event: 'stopped', listener: () => void): this;
+    on(event: 'error', listener: (message: string) => string) : this;
     on(event: string, listener: CallableFunction): this;
 }
 
@@ -27,7 +28,7 @@ export class Cache<
     K extends string | number = string | number,
     O extends KeyReference = never,
 > extends EventEmitter {
-    protected scheduler : CacheScheduler<K, O> | undefined;
+    protected subscriber : Redis | undefined;
 
     protected context : CacheContext;
 
@@ -47,32 +48,57 @@ export class Cache<
     //--------------------------------------------------------------------
 
     /* istanbul ignore next */
-    async startScheduler() : Promise<void> {
-        if (typeof this.scheduler !== 'undefined') {
+    async start() : Promise<void> {
+        if (this.subscriber) {
             return;
         }
 
-        const scheduler = new CacheScheduler<K, O>({
-            redis: this.context.redis,
-        }, this.buildOptions());
+        const subscriber = this.context.redis.duplicate();
 
-        await scheduler.start();
+        await subscriber.config('SET', 'notify-keyspace-events', 'Ex');
+        await subscriber.psubscribe(['__key*__:*']);
 
-        scheduler.on('expired', (data) => {
-            this.emit('expired', data);
+        const handleResult = (input: unknown) => {
+            const result = this.parseKey(input);
+
+            if (typeof result === 'undefined') {
+                this.emit('error', new Error('Expired key could not be parsed.'));
+                return;
+            }
+
+            if (
+                this.options &&
+                this.options.prefix &&
+                this.options.prefix !== result.prefix
+            ) {
+                return;
+            }
+
+            if (
+                this.options &&
+                this.options.suffix &&
+                this.options.suffix !== result.suffix
+            ) {
+                return;
+            }
+
+            this.emit('expired', result);
+        };
+
+        subscriber.on('pmessage', (pattern, channel, message) => {
+            handleResult(message);
         });
 
-        this.scheduler = scheduler;
-
+        this.subscriber = subscriber;
         this.emit('started');
     }
 
     /* istanbul ignore next */
-    async stopScheduler() : Promise<void> {
-        if (!this.scheduler) return;
+    async stop() : Promise<void> {
+        if (!this.subscriber) return;
 
-        await this.scheduler.stop();
-        this.scheduler = undefined;
+        await this.subscriber.punsubscribe(['__key*__:*']);
+        this.subscriber = undefined;
 
         this.emit('stopped');
     }
@@ -131,6 +157,16 @@ export class Cache<
     buildKey(options: KeyOptions<K, O>) {
         return buildKeyPath(this.buildOptions(options));
     }
+
+    parseKey(key: unknown) : KeyPathParseResult<K, O> | undefined {
+        if (typeof key !== 'string') {
+            return undefined;
+        }
+
+        return parseKeyPath(key);
+    }
+
+    //--------------------------------------------------------------------
 
     buildOptions(options?: KeyOptions<K, O>) : CacheOptions<K, O> {
         options ??= {};

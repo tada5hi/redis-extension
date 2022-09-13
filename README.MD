@@ -155,7 +155,7 @@ import {
     });
 
     // Start scheduler to watch cached entries and trigger specific events.
-    await cache.startScheduler();
+    await cache.start();
 
     await cache.set('foo', 'bar');
     const payload = cache.get('foo');
