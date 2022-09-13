@@ -20,7 +20,7 @@ export declare interface Cache<
     on(event: 'expired', listener: (key: KeyPathParseResult<K, O>) => void): this;
     on(event: 'started', listener: () => void): this;
     on(event: 'stopped', listener: () => void): this;
-    on(event: 'error', listener: (message: string) => string) : this;
+    on(event: 'failed', listener: (message: string, meta: unknown) => string) : this;
     on(event: string, listener: CallableFunction): this;
 }
 
@@ -62,7 +62,7 @@ export class Cache<
             const result = this.parseKey(input);
 
             if (typeof result === 'undefined') {
-                this.emit('error', new Error('Expired key could not be parsed.'));
+                this.emit('failed', 'Expired key could not be parsed.', input);
                 return;
             }
 
