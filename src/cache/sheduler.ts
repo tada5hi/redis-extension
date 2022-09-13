@@ -52,10 +52,9 @@ export class CacheScheduler<
 
         await subscriber.psubscribe(['__key*__:*']);
 
-        subscriber.on('pmessage', (pattern, channel, message) => {
-            const result = this.parseKey(message);
-
+        const handleResult = (result: KeyPathParseResult<K, O>) => {
             if (
+                this.options &&
                 this.options.prefix &&
                 this.options.prefix !== result.prefix
             ) {
@@ -63,6 +62,7 @@ export class CacheScheduler<
             }
 
             if (
+                this.options &&
                 this.options.suffix &&
                 this.options.suffix !== result.suffix
             ) {
@@ -70,6 +70,10 @@ export class CacheScheduler<
             }
 
             this.emit('expired', result);
+        };
+
+        subscriber.on('pmessage', (pattern, channel, message) => {
+            handleResult(this.parseKey(message));
         });
 
         this.subscriber = subscriber;
@@ -82,7 +86,7 @@ export class CacheScheduler<
         this.subscriber = undefined;
     }
 
-    parseKey(key: string) {
+    parseKey(key: string) : KeyPathParseResult<K, O> {
         return parseKeyPath(key);
     }
 }
