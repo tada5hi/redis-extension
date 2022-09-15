@@ -5,8 +5,29 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import { hasOwnProperty } from './has-own-property';
+
 function isObject(item: any) {
     return (item && typeof item === 'object' && !Array.isArray(item));
+}
+
+export function hasMinDepthOf(record: Record<string, any>, depth: number) {
+    if (depth === 0) {
+        return true;
+    }
+
+    const keys = Object.keys(record);
+    for (let i = 0; i < keys.length; i++) {
+        if (
+            hasOwnProperty(record, keys[i]) &&
+            typeof record[keys[i]] === 'object' &&
+            hasMinDepthOf(record[keys[i]], depth - 1)
+        ) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /**
@@ -22,13 +43,30 @@ export function mergeDeep<A extends Record<string, any>, B extends Record<string
         isObject(target) &&
         isObject(source)
     ) {
+        if (
+            hasOwnProperty(source, '__proto__') ||
+            hasOwnProperty(source, 'constructor')
+        ) {
+            return mergeDeep(target, ...sources);
+        }
+
         const keys = Object.keys(source);
         for (let i = 0; i < keys.length; i++) {
             const key : string = keys[i];
 
             if (isObject(source[key])) {
-                if (!target[key]) Object.assign(target, { [key]: {} });
-                mergeDeep(target[key], source[key]);
+                if (hasOwnProperty(target, key)) {
+                    if (
+                        !isObject(target[key]) ||
+                        !hasMinDepthOf(target[key], 10) ||
+                        !hasMinDepthOf(source[key], 10)
+                    ) {
+                        mergeDeep(target[key], source[key]);
+                    }
+                } else {
+                    Object.assign(target, { [key]: {} });
+                    mergeDeep(target[key], source[key]);
+                }
             } else {
                 Object.assign(target, { [key]: source[key] });
             }

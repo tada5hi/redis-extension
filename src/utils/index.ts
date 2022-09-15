@@ -6,4 +6,5 @@
  */
 
 export * from './key';
+export * from './has-own-property';
 export * from './merge-deep';
