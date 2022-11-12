@@ -49,6 +49,8 @@ describe('src/cache/index.ts', function () {
 
         let isExpired = await cache.isExpired('id');
         expect(isExpired).toEqual(false);
+
+        await cache.drop('id');
     });
 
     it('should create & drop cache with context', async () => {

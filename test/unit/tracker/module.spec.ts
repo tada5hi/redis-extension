@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import RealIORedis from "ioredis-mock";
+import Redis from "ioredis-mock";
 import {Tracker} from "../../../src";
 
 const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
@@ -13,7 +13,7 @@ const delay = (ms: number) => new Promise(res => setTimeout(res, ms));
 describe('src/tracker/index.ts', function () {
     it('should build tracker path', () => {
         const tracker = new Tracker<string>({
-            redis: new RealIORedis()
+            redis: new Redis()
         });
 
         expect(tracker.buildKey({id: 'id'})).toEqual('tracker#id');
@@ -21,7 +21,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should add & count entries', async () => {
         const tracker = new Tracker<string>({
-            redis: new RealIORedis()
+            redis: new Redis()
         });
 
         await tracker.add('foo');
@@ -35,7 +35,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should drop & count entries', async () => {
         const tracker = new Tracker<string>({
-            redis: new RealIORedis()
+            redis: new Redis()
         });
 
         await tracker.add('foo');
@@ -48,7 +48,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should set, get & drop meta', async () => {
         const tracker = new Tracker<string>({
-            redis: new RealIORedis()
+            redis: new Redis()
         });
 
         await tracker.setMeta('foo', {last_seen: false});
@@ -70,7 +70,7 @@ describe('src/tracker/index.ts', function () {
 
     it('should get entries', async () => {
         const tracker = new Tracker<string>({
-            redis: new RealIORedis()
+            redis: new Redis()
         });
 
         await tracker.add('foo');

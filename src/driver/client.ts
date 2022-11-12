@@ -16,12 +16,11 @@ const instances: Record<string, Client> = {};
 export function useClient(alias?: string) : Client {
     alias = getAlias(alias);
 
-    const config = useConfig(alias);
-
     if (Object.prototype.hasOwnProperty.call(instances, alias)) {
         return instances[alias];
     }
 
+    const config = useConfig(alias);
     instances[alias] = createClient(config);
 
     return instances[alias];

@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { mergeDeep } from '../utils';
+import { merge } from 'smob';
 import { Config } from './type';
 
 const getAlias = (alias?: string) => alias || 'default';
@@ -38,7 +38,7 @@ export function useConfig(
 export function buildConfig(config?: Config) : Config {
     config ??= {};
 
-    return mergeDeep({
+    return merge({
         options: {
             enableReadyCheck: true,
             retryStrategy(times: number): number | void | null {

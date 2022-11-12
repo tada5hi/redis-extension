@@ -56,7 +56,7 @@ export class Cache<
         const subscriber = this.context.redis.duplicate();
 
         await subscriber.config('SET', 'notify-keyspace-events', 'Ex');
-        await subscriber.psubscribe(['__key*__:*']);
+        await subscriber.psubscribe('__key*__:*');
 
         const handleResult = (input: unknown) => {
             const result = this.parseKey(input);
@@ -97,7 +97,7 @@ export class Cache<
     async stop() : Promise<void> {
         if (!this.subscriber) return;
 
-        await this.subscriber.punsubscribe(['__key*__:*']);
+        await this.subscriber.punsubscribe('__key*__:*');
         this.subscriber = undefined;
 
         this.emit('stopped');
