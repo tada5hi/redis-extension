@@ -3,6 +3,7 @@
 [![npm version](https://badge.fury.io/js/redis-extension.svg)](https://badge.fury.io/js/redis-extension)
 [![main](https://github.com/tada5hi/redis-extension/actions/workflows/main.yml/badge.svg)](https://github.com/tada5hi/redis-extension/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/tada5hi/redis-extension/branch/master/graph/badge.svg?token=0VL41WO0CG)](https://codecov.io/gh/tada5hi/redis-extension)
+[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 
 This is a library to
 - manage singleton client & cluster instances
@@ -17,20 +18,13 @@ This is a library to
   - [Singleton](#singleton)
   - [Cache](#cache)
   - [Tracker](#tracker)
+- [License](#license)
 
 ## Installation
 
 ```bash
 npm install redis-extension --save
 ```
-
----
-**Important NOTE**
-
-The public API is still in progress and in development ☂ and can still can change therefore until the v1.0.0 release.
-So please stay patient, till it is fully available ⭐.
-
----
 
 ## Usage
 
@@ -118,7 +112,7 @@ const cluster = useCluster('alias');
 
 ### Cache
 
-The cache sub-module requires a Redis instance,
+The cache submodule requires a Redis instance,
 which can either be created with this library or with the underneath ioredis driver itself.
 
 ```typescript
@@ -205,3 +199,9 @@ import {
 ```
 
 The `score` property represents the unix timestamp, when the entry was added.
+
+## License
+
+Made with 💚
+
+Published under [MIT License](./LICENSE).
