@@ -51,7 +51,7 @@
         "@semantic-release/npm": "^9.0.1",
         "@semantic-release/release-notes-generator": "^10.0.3",
         "@tada5hi/eslint-config-typescript": "^1.0.10",
-        "@types/ioredis-mock": "^8.2.0",
+        "@types/ioredis-mock": "^8.2.1",
         "@types/jest": "^27.5.0",
         "@types/node": "^18.11.18",
         "@types/node-schedule": "^2.1.0",
