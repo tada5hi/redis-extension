@@ -70,7 +70,7 @@
     "dependencies": {
         "ioredis": "^5.2.4",
         "node-schedule": "^2.1.1",
-        "smob": "^0.0.6"
+        "smob": "^0.0.7"
     },
     "config": {
         "commitizen": {
