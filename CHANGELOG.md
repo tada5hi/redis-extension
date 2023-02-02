@@ -1,3 +1,10 @@
+## [1.2.3](https://github.com/Tada5hi/redis-extension/compare/v1.2.2...v1.2.3) (2023-02-02)
+
+
+### Bug Fixes
+
+* **deps:** bump smob from 0.0.7 to 0.1.0 ([#192](https://github.com/Tada5hi/redis-extension/issues/192)) ([8546d38](https://github.com/Tada5hi/redis-extension/commit/8546d381f5328eb84d2288eef8f11e2a4031d814))
+
 ## [1.2.2](https://github.com/Tada5hi/redis-extension/compare/v1.2.1...v1.2.2) (2023-01-28)
 
 
