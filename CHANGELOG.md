@@ -1,3 +1,10 @@
+## [1.2.4](https://github.com/Tada5hi/redis-extension/compare/v1.2.3...v1.2.4) (2023-03-30)
+
+
+### Bug Fixes
+
+* **deps:** bump ioredis from 5.3.0 to 5.3.1 ([#205](https://github.com/Tada5hi/redis-extension/issues/205)) ([5573bea](https://github.com/Tada5hi/redis-extension/commit/5573bea6214455ab23e8ed81637aca0d2656fbd6))
+
 ## [1.2.3](https://github.com/Tada5hi/redis-extension/compare/v1.2.2...v1.2.3) (2023-02-02)
 
 
