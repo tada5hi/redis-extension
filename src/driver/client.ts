@@ -6,8 +6,9 @@
  */
 
 import IORedis from 'ioredis';
-import { Config, useConfig } from '../config';
-import { Client } from './type';
+import type { Config } from '../config';
+import { useConfig } from '../config';
+import type { Client } from './type';
 
 const getAlias = (key?: string) => key || 'default';
 
@@ -41,10 +42,25 @@ export function setClient(value: Client, alias?: string) : Client {
 }
 
 export function createClient(config?: Config) : Client {
-    config ??= {};
+    config = config || {};
 
-    return new IORedis(
-        config.connectionString,
-        config.options,
-    );
+    if (
+        config.connectionString &&
+        config.options
+    ) {
+        return new IORedis(
+            config.connectionString,
+            config.options,
+        );
+    }
+
+    if (config.options) {
+        return new IORedis(config.options);
+    }
+
+    if (config.connectionString) {
+        return new IORedis(config.connectionString);
+    }
+
+    return new IORedis();
 }

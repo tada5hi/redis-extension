@@ -6,9 +6,9 @@
  */
 
 import { EventEmitter } from 'events';
-import { Redis } from 'ioredis';
-import { CacheContext, CacheOptions } from './type';
-import {
+import type { Redis } from 'ioredis';
+import type { CacheContext, CacheOptions } from './type';
+import type {
     KeyOptions, KeyPathID, KeyPathParseResult, KeyReference,
 } from '../type';
 import { buildKeyPath, parseKeyPath } from '../utils';
@@ -85,7 +85,7 @@ export class Cache<
             this.emit('expired', result);
         };
 
-        subscriber.on('pmessage', (pattern, channel, message) => {
+        subscriber.on('pmessage', (_pattern, _channel, message) => {
             handleResult(message);
         });
 

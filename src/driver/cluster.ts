@@ -6,8 +6,9 @@
  */
 
 import IORedis from 'ioredis';
-import { Config, useConfig } from '../config';
-import { Cluster, ClusterNode } from './type';
+import type { Config } from '../config';
+import { useConfig } from '../config';
+import type { Cluster, ClusterNode } from './type';
 
 const getAlias = (alias?: string) => alias || 'default';
 
@@ -49,7 +50,10 @@ export function createCluster(config?: Config) : Cluster {
         nodes = config.clusterNodes;
     }
 
-    if (nodes.length === 0) {
+    if (
+        nodes.length === 0 &&
+        config.connectionString
+    ) {
         nodes = [config.connectionString];
     }
 
