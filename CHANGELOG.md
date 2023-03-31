@@ -1,3 +1,30 @@
+## v1.3.0
+
+[compare changes](https://github.com/tada5hi/redis-extension/compare/v1.2.4...v1.3.0)
+
+
+### 🚀 Enhancements
+
+  - Enhance config management + adjusted test suite ([22c3913](https://github.com/tada5hi/redis-extension/commit/22c3913))
+
+### 🩹 Fixes
+
+  - Adjusted correct client creation Ã+ updated dev deps ([4c54a37](https://github.com/tada5hi/redis-extension/commit/4c54a37))
+  - **deps:** Bump smob to v1.x ([47c47f9](https://github.com/tada5hi/redis-extension/commit/47c47f9))
+
+### 📦 Build
+
+  - Simplified commitlint configuration + extend base tsconfig ([6934251](https://github.com/tada5hi/redis-extension/commit/6934251))
+  - Use changelogen instead of semantic-release ([91edf19](https://github.com/tada5hi/redis-extension/commit/91edf19))
+
+### 🎨 Styles
+
+  - Fix consistent type imports ([753f94a](https://github.com/tada5hi/redis-extension/commit/753f94a))
+
+### ❤️  Contributors
+
+- Tada5hi <peter.placzek1996@gmail.com>
+
 ## [1.2.4](https://github.com/Tada5hi/redis-extension/compare/v1.2.3...v1.2.4) (2023-03-30)
 
 
