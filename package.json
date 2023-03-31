@@ -33,12 +33,12 @@
     ],
     "repository": {
         "type": "git",
-        "url": "git+https://github.com/Tada5hi/redis-extension.git"
+        "url": "git+https://github.com/tada5hi/redis-extension.git"
     },
     "bugs": {
-        "url": "https://github.com/Tada5hi/redis-extension/issues"
+        "url": "https://github.com/tada5hi/redis-extension/issues"
     },
-    "homepage": "https://github.com/Tada5hi/redis-extension#readme",
+    "homepage": "https://github.com/tada5hi/redis-extension#readme",
     "devDependencies": {
         "@semantic-release/changelog": "^6.0.2",
         "@semantic-release/commit-analyzer": "^9.0.2",
@@ -65,6 +65,6 @@
     "dependencies": {
         "ioredis": "^5.3.1",
         "node-schedule": "^2.1.1",
-        "smob": "^0.1.0"
+        "smob": "^1.0.0"
     }
 }
