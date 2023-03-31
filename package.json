@@ -40,17 +40,15 @@
     },
     "homepage": "https://github.com/Tada5hi/redis-extension#readme",
     "devDependencies": {
-        "@commitlint/cli": "^17.4.2",
-        "@commitlint/config-angular": "^17.4.2",
-        "@commitlint/config-conventional": "^17.4.2",
-        "@commitlint/cz-commitlint": "^17.4.2",
         "@semantic-release/changelog": "^6.0.2",
         "@semantic-release/commit-analyzer": "^9.0.2",
         "@semantic-release/git": "^10.0.1",
         "@semantic-release/github": "^8.0.7",
         "@semantic-release/npm": "^9.0.2",
         "@semantic-release/release-notes-generator": "^10.0.3",
-        "@tada5hi/eslint-config-typescript": "^1.1.4",
+        "@tada5hi/commitlint-config": "^1.0.1",
+        "@tada5hi/eslint-config-typescript": "^1.1.6",
+        "@tada5hi/tsconfig": "^0.4.0",
         "@types/ioredis-mock": "^8.2.1",
         "@types/jest": "^27.5.0",
         "@types/node": "^18.14.0",
@@ -71,10 +69,5 @@
         "ioredis": "^5.3.1",
         "node-schedule": "^2.1.1",
         "smob": "^0.1.0"
-    },
-    "config": {
-        "commitizen": {
-            "path": "@commitlint/cz-commitlint"
-        }
     }
 }
