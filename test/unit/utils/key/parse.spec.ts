@@ -45,14 +45,19 @@ describe('src/utils/key/parse.ts', function () {
         expect(result).toEqual({id: 'id', context: {user_id: 1}})
 
         result = parseKeyPath('{ user_id: 1 }#id');
-        expect(result.id).toEqual('id');
-        expect(result.context).toEqual({user_id: 1});
+        expect(result).toBeDefined();
+        if(result) {
+            expect(result.id).toEqual('id');
+            expect(result.context).toEqual({user_id: 1});
+        }
 
         result = parseKeyPath('prefix{parent:id}#id.suffix');
-        expect(result.id).toEqual('id');
-        expect(result.context).toEqual({parent: 'id'});
-        expect(result.prefix).toEqual('prefix');
-        expect(result.suffix).toEqual('suffix');
+        if(result) {
+            expect(result.id).toEqual('id');
+            expect(result.context).toEqual({parent: 'id'});
+            expect(result.prefix).toEqual('prefix');
+            expect(result.suffix).toEqual('suffix');
+        }
     });
 
     it('should build and parse key', () => {
@@ -70,9 +75,11 @@ describe('src/utils/key/parse.ts', function () {
         const result = parseKeyPath(keyPath);
 
         expect(result).toBeDefined();
-        expect(result.id).toEqual(1);
-        expect(result.context).toEqual({realm_id: 'master'});
-        expect(result.prefix).toEqual('foo');
-        expect(result.suffix).toEqual('suffix');
+        if(result) {
+            expect(result.id).toEqual(1);
+            expect(result.context).toEqual({realm_id: 'master'});
+            expect(result.prefix).toEqual('foo');
+            expect(result.suffix).toEqual('suffix');
+        }
     })
 });

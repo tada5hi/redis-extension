@@ -6,8 +6,8 @@
  */
 
 import IORedis from 'ioredis';
-import type { Config } from '../config';
-import { useConfig } from '../config';
+import type { ConfigInput } from '../config';
+import { buildConfig, useConfig } from '../config';
 import type { Cluster, ClusterNode } from './type';
 
 const getAlias = (alias?: string) => alias || 'default';
@@ -42,8 +42,8 @@ export function hasCluster(alias?: string) {
     return Object.prototype.hasOwnProperty.call(instances, alias);
 }
 
-export function createCluster(config?: Config) : Cluster {
-    config ??= {};
+export function createCluster(input?: ConfigInput) : Cluster {
+    const config = buildConfig(input);
 
     let nodes : ClusterNode[] = [];
     if (config.clusterNodes) {

@@ -5,11 +5,13 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { ClientOptions, ClusterNode, ClusterOptions } from '../driver/type';
+import type { ClientOptions, ClusterNode, ClusterOptions } from '../driver/type';
 
 export type Config = {
-    options?: ClientOptions,
+    options: ClientOptions,
     connectionString?: string,
-    clusterNodes?: ClusterNode[],
-    clusterOptions?: ClusterOptions
+    clusterNodes: ClusterNode[],
+    clusterOptions: ClusterOptions
 };
+
+export type ConfigInput = Partial<Config>;

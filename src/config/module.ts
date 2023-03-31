@@ -5,20 +5,20 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { merge } from 'smob';
-import { Config } from './type';
+import type { Config, ConfigInput } from './type';
+import { buildConfig, buildConfigWithDefaults } from './utils';
 
 const getAlias = (alias?: string) => alias || 'default';
 
 const instances : Record<string, Config> = {};
 
 export function setConfig(
-    value: Config,
+    value: ConfigInput,
     alias?: string,
 ) {
     alias = getAlias(alias);
 
-    instances[alias] = value;
+    instances[alias] = buildConfig(value);
 }
 
 export function hasConfig(alias?: string) {
@@ -32,23 +32,19 @@ export function useConfig(
 ): Config {
     alias = getAlias(alias);
 
-    return buildConfig(instances[alias] || {});
+    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
+        return instances[alias];
+    }
+
+    return buildConfigWithDefaults();
 }
 
-export function buildConfig(config?: Config) : Config {
-    config ??= {};
+export function unsetConfig(
+    alias?: string,
+) {
+    alias = getAlias(alias);
 
-    return merge({
-        options: {
-            enableReadyCheck: true,
-            retryStrategy(times: number): number | void | null {
-                /* istanbul ignore next */
-                return times === 3 ? null : Math.min(times * 50, 2000);
-            },
-            reconnectOnError(error: Error): boolean {
-                /* istanbul ignore next */
-                return error.message.includes('ECONNRESET');
-            },
-        },
-    }, config);
+    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
+        delete instances[alias];
+    }
 }

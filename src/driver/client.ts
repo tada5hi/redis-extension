@@ -6,7 +6,7 @@
  */
 
 import IORedis from 'ioredis';
-import type { Config } from '../config';
+import type { ConfigInput } from '../config';
 import { useConfig } from '../config';
 import type { Client } from './type';
 
@@ -27,6 +27,16 @@ export function useClient(alias?: string) : Client {
     return instances[alias];
 }
 
+export function unsetClient(alias?: string) {
+    alias = getAlias(alias);
+
+    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
+        instances[alias].disconnect();
+
+        delete instances[alias];
+    }
+}
+
 export function hasClient(alias?: string) {
     alias = getAlias(alias);
 
@@ -41,7 +51,7 @@ export function setClient(value: Client, alias?: string) : Client {
     return instances[alias];
 }
 
-export function createClient(config?: Config) : Client {
+export function createClient(config?: ConfigInput) : Client {
     config = config || {};
 
     if (
