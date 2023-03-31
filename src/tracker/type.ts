@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Redis } from 'ioredis';
-import { KeyOptions, KeyReference } from '../type';
+import type { Redis } from 'ioredis';
+import type { KeyOptions, KeyReference } from '../type';
 
 export type TrackerContext = {
     redis: Redis

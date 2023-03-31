@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { KeyOptions, KeyReference } from '../type';
-import { Client } from '../driver/type';
+import type { KeyOptions, KeyReference } from '../type';
+import type { Client } from '../driver/type';
 
 export type CacheContext = {
     redis: Client

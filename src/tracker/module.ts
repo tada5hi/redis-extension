@@ -5,12 +5,12 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import {
+import type {
     TrackerContext,
     TrackerItem,
     TrackerOptions,
 } from './type';
-import { KeyOptions, KeyPathID, KeyReference } from '../type';
+import type { KeyOptions, KeyPathID, KeyReference } from '../type';
 import { buildKeyPath } from '../utils';
 
 export class Tracker<

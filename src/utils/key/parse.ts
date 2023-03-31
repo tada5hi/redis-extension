@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { KeyPathID, KeyPathParseResult, KeyReference } from '../../type';
+import type { KeyPathID, KeyPathParseResult, KeyReference } from '../../type';
 
 export function parseKeyPath<
     K extends string | number = string | number,
