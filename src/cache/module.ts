@@ -24,6 +24,7 @@ export declare interface Cache<
     on(event: string, listener: CallableFunction): this;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
 export class Cache<
     K extends string | number = string | number,
     O extends KeyReference = never,
@@ -36,10 +37,11 @@ export class Cache<
 
     //--------------------------------------------------------------------
 
-    constructor(context: CacheContext, options?: CacheOptions<K, O>) {
+    constructor(
+        context: CacheContext,
+        options: CacheOptions<K, O> = {},
+    ) {
         super();
-
-        options ??= {};
 
         this.context = context;
         this.options = options;
