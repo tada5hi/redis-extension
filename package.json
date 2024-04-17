@@ -67,7 +67,7 @@
         "typescript": "^5.0.3"
     },
     "dependencies": {
-        "ioredis": "^5.3.1",
+        "ioredis": "^5.4.0",
         "node-schedule": "^2.1.1",
         "smob": "^1.5.0"
     }
