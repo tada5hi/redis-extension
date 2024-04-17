@@ -1,3 +1,10 @@
+# [1.5.0](https://github.com/tada5hi/redis-extension/compare/v1.4.0...v1.5.0) (2024-04-17)
+
+
+### Features
+
+* don't use default export for client creation as well ([3a2a194](https://github.com/tada5hi/redis-extension/commit/3a2a194878f5367a1fde365643166ec9f37121e1))
+
 # [1.4.0](https://github.com/tada5hi/redis-extension/compare/v1.3.1...v1.4.0) (2024-04-17)
 
 
