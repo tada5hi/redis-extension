@@ -1,3 +1,10 @@
+# [1.4.0](https://github.com/tada5hi/redis-extension/compare/v1.3.1...v1.4.0) (2024-04-17)
+
+
+### Features
+
+* don't use default export for cluster creation ([fb77bb3](https://github.com/tada5hi/redis-extension/commit/fb77bb3881f07ed051d15c5d97ac174eab5a3fcb))
+
 ## [1.3.1](https://github.com/tada5hi/redis-extension/compare/v1.3.0...v1.3.1) (2024-04-17)
 
 
