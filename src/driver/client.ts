@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import IORedis from 'ioredis';
+import { Redis } from 'ioredis';
 import type { ConfigInput } from '../config';
 import { useConfig } from '../config';
 import type { Client } from './type';
@@ -58,19 +58,19 @@ export function createClient(config?: ConfigInput) : Client {
         config.connectionString &&
         config.options
     ) {
-        return new IORedis(
+        return new Redis(
             config.connectionString,
             config.options,
         );
     }
 
     if (config.options) {
-        return new IORedis(config.options);
+        return new Redis(config.options);
     }
 
     if (config.connectionString) {
-        return new IORedis(config.connectionString);
+        return new Redis(config.connectionString);
     }
 
-    return new IORedis();
+    return new Redis();
 }
