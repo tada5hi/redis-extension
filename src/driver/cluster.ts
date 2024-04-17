@@ -5,10 +5,10 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import IORedis from 'ioredis';
+import { Cluster } from 'ioredis';
 import type { ConfigInput } from '../config';
 import { buildConfig, useConfig } from '../config';
-import type { Cluster, ClusterNode } from './type';
+import type { ClusterNode } from './type';
 
 const getAlias = (alias?: string) => alias || 'default';
 
@@ -57,7 +57,7 @@ export function createCluster(input?: ConfigInput) : Cluster {
         nodes = [config.connectionString];
     }
 
-    return new IORedis.Cluster(
+    return new Cluster(
         nodes,
         config.clusterOptions,
     );
