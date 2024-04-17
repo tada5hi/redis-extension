@@ -1,3 +1,11 @@
+## [1.3.1](https://github.com/tada5hi/redis-extension/compare/v1.3.0...v1.3.1) (2024-04-17)
+
+
+### Bug Fixes
+
+* **deps:** bump ioredis from 5.3.1 to 5.4.0 ([#243](https://github.com/tada5hi/redis-extension/issues/243)) ([3d41f5f](https://github.com/tada5hi/redis-extension/commit/3d41f5fb0a261b0b8a9b01deab211d2e0f3fafbe))
+* **deps:** bump smob from 1.0.0 to 1.5.0 ([#232](https://github.com/tada5hi/redis-extension/issues/232)) ([841045a](https://github.com/tada5hi/redis-extension/commit/841045a3e057bbfdf21ec2ef00948ab3e3a178ab))
+
 ## v1.3.0
 
 [compare changes](https://github.com/tada5hi/redis-extension/compare/v1.2.4...v1.3.0)
