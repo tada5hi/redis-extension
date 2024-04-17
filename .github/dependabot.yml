@@ -2,6 +2,7 @@ version: 2
 updates:
     # Maintain dependencies for GitHub Actions
     - package-ecosystem: "github-actions"
+      target-branch: "develop"
       directory: "/"
       schedule:
           interval: "daily"
@@ -12,6 +13,8 @@ updates:
       schedule:
           interval: "daily"
       versioning-strategy: "increase"
+      target-branch: "develop"
+      open-pull-requests-limit: 15
       commit-message:
           prefix: "fix"
           prefix-development: "build"
