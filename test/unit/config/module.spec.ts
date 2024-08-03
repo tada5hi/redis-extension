@@ -5,12 +5,14 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import {useConfig, setConfig, buildConfigWithDefaults, unsetConfig, hasConfig} from "../../../src";
+import {
+    buildConfigWithDefaults, hasConfig, setConfig, unsetConfig, useConfig,
+} from '../../../src';
 
 describe('src/config', () => {
     it('should set & get redis config', () => {
         setConfig({
-            connectionString: 'foo'
+            connectionString: 'foo',
         });
 
         let config = useConfig();
@@ -30,7 +32,7 @@ describe('src/config', () => {
         expect(hasConfig()).toBeFalsy();
 
         setConfig({
-            connectionString: 'foo'
+            connectionString: 'foo',
         });
 
         expect(hasConfig()).toBeTruthy();
@@ -38,19 +40,19 @@ describe('src/config', () => {
         unsetConfig();
 
         expect(hasConfig()).toBeFalsy();
-    })
+    });
 
     it('should build config with defaults', () => {
         const config = buildConfigWithDefaults();
         expect(config.options.enableReadyCheck).toEqual(true);
         expect(config.options.reconnectOnError).toBeDefined();
-    })
+    });
 
     it('should set & get redis config with options', () => {
         setConfig({
             options: {
-                role: "master"
-            }
+                role: 'master',
+            },
         });
 
         let config = useConfig('default');
@@ -64,4 +66,4 @@ describe('src/config', () => {
         expect(config.options).toBeDefined();
         expect(config.options.role).toBeUndefined();
     });
-})
+});
