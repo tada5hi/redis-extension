@@ -7,29 +7,31 @@
 
 import type { Client } from '../driver';
 import type {
-    TrackerGetManyOptions,
-    TrackerItem,
-    TrackerOptions,
+    ScoreBoardGetManyOptions,
+    ScoreBoardItem,
+    ScoreBoardOptions, ScoreBoardOptionsInput,
 } from './types';
-import { stringifyKey } from '../key';
 
-export class Tracker {
+export class ScoreBoard {
     protected client: Client;
 
-    protected options: TrackerOptions;
+    protected options: ScoreBoardOptions;
 
-    constructor(client: Client, options: TrackerOptions = {}) {
+    constructor(client: Client, options: ScoreBoardOptionsInput = {}) {
         this.client = client;
-        this.options = options;
+        this.options = {
+            ...options,
+            key: 'score-board',
+        };
     }
 
     //--------------------------------------------------------------------
 
     async getTotal() : Promise<number | undefined> {
-        return this.client.zcard(this.buildKey('score'));
+        return this.client.zcard(this.options.key);
     }
 
-    async getMany(options: TrackerGetManyOptions = {}) {
+    async getMany(options: ScoreBoardGetManyOptions = {}) {
         options.sort = options.sort || 'DESC';
 
         let data : string[];
@@ -37,14 +39,14 @@ export class Tracker {
         if (typeof options.limit === 'undefined') {
             if (options.sort === 'DESC') {
                 data = await this.client.zrevrangebyscore(
-                    this.buildKey('score'),
+                    this.options.key,
                     '+inf',
                     '-inf',
                     'WITHSCORES',
                 );
             } else {
                 data = await this.client.zrangebyscore(
-                    this.buildKey('score'),
+                    this.options.key,
                     '-inf',
                     '+inf',
                     'WITHSCORES',
@@ -54,7 +56,7 @@ export class Tracker {
             options.offset ??= 0;
             if (options.sort === 'DESC') {
                 data = await this.client.zrevrangebyscore(
-                    this.buildKey('score'),
+                    this.options.key,
                     '+inf',
                     '-inf',
                     'WITHSCORES',
@@ -64,7 +66,7 @@ export class Tracker {
                 );
             } else {
                 data = await this.client.zrangebyscore(
-                    this.buildKey('score'),
+                    this.options.key,
                     '-inf',
                     '+inf',
                     'WITHSCORES',
@@ -75,11 +77,11 @@ export class Tracker {
             }
         }
 
-        const items : TrackerItem<string>[] = [];
+        const items : ScoreBoardItem[] = [];
 
         for (let i = 0; i < data.length; i += 2) {
             items.push({
-                id: data[i], // todo: maybe str -> number
+                id: data[i],
                 score: parseInt(data[i + 1], 10),
             });
         }
@@ -93,63 +95,36 @@ export class Tracker {
         };
     }
 
-    //--------------------------------------------------------------------
-
-    async add(id: string, options: { meta?: Record<string, any> } = {}) {
-        await this.client.zadd(
-            this.buildKey('score'),
-            performance.now(),
-            `${id}`,
-        );
-
-        if (options.meta) {
-            await this.setMeta(id, options.meta);
-        }
+    async clear() {
+        this.client.del(this.options.key);
     }
 
+    //--------------------------------------------------------------------
+
+    /**
+     * Set the score for a given key.
+     * THe score will be set on default to performance.now()
+     *
+     * @param id
+     * @param score
+     */
+    async add(id: string, score?: number) {
+        await this.client.zadd(
+            this.options.key,
+            score || performance.now(),
+            `${id}`,
+        );
+    }
+
+    /**
+     * Clear the score for a given key.
+     *
+     * @param id
+     */
     async drop(id: string) {
         await this.client.zrem(
-            this.buildKey('score'),
+            this.options.key,
             `${id}`,
         );
-
-        await this.dropMeta(id);
-    }
-
-    //--------------------------------------------------------------------
-
-    public async setMeta(id: string, meta: Record<string, any>) {
-        await this.client.hset(
-            this.buildKey('meta'),
-            `${id}`,
-            JSON.stringify(meta),
-        );
-    }
-
-    public async getMeta(id: string) : Promise<Record<string, any> | undefined> {
-        const data = await this.client.hget(
-            this.buildKey('meta'),
-            `${id}`,
-        );
-
-        if (data === null || typeof data === 'undefined') {
-            return undefined;
-        }
-
-        return JSON.parse(data);
-    }
-
-    public async dropMeta(id: string) {
-        await this.client.hdel(this.buildKey('meta'), `${id}`);
-    }
-
-    //--------------------------------------------------------------------
-
-    protected buildKey(id: 'meta' | 'score') {
-        return stringifyKey({
-            ...this.options,
-            prefix: this.options.prefix || 'tracker',
-            id,
-        });
     }
 }

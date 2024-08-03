@@ -5,15 +5,13 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type CacheOptions = {
+export type WatcherOptions = {
     prefix?: string,
     seconds?: number,
     milliseconds?: number,
 };
 
-export type CacheOptionsInput = CacheOptions;
-
-export type CacheSetOptions = {
+export type WatcherSetOptions = {
     seconds?: number,
     milliseconds?: number,
     ifNotExists?: boolean, // (NX)

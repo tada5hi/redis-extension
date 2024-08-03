@@ -5,8 +5,8 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export * from './cache';
+export * from './watcher';
 export * from './config';
 export * from './driver';
 export * from './key';
-export * from './tracker';
+export * from './score-board';

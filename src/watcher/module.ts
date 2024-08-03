@@ -5,34 +5,24 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { EventEmitter } from 'events';
+import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
-import type { CacheOptionsInput, CacheSetOptions } from './types';
+import type { WatcherOptions, WatcherSetOptions } from './types';
 import type { Key } from '../key';
 import { parseKey, stringifyKey } from '../key';
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export declare interface Cache {
-    on(event: 'expired', listener: (key: Key) => void): this;
-    on(event: 'started', listener: () => void): this;
-    on(event: 'stopped', listener: () => void): this;
-    on(event: 'failed', listener: (message: string, meta: unknown) => string) : this;
-    on(event: string, listener: CallableFunction): this;
-}
-
-// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export class Cache extends EventEmitter implements Cache {
+export class Watcher extends EventEmitter {
     protected client: Redis;
 
     protected subscriberClient : Redis | undefined;
 
-    protected options : CacheOptionsInput;
+    protected options : WatcherOptions;
 
     //--------------------------------------------------------------------
 
     constructor(
         client: Redis,
-        options: CacheOptionsInput = {},
+        options: WatcherOptions = {},
     ) {
         super();
 
@@ -41,6 +31,18 @@ export class Cache extends EventEmitter implements Cache {
     }
 
     //--------------------------------------------------------------------
+
+    override on(event: 'expired', listener: (key: Key) => void) : this;
+
+    override on(event: 'started', listener: () => void) : this;
+
+    override on(event: 'stopped', listener: () => void) : this;
+
+    override on(event: 'failed', listener: (message: string, meta: unknown) => string) : this;
+
+    override on(event: string, listener: (...args: any[]) => void) : this {
+        return super.on(event, listener);
+    }
 
     /* istanbul ignore next */
     async start() : Promise<void> {
@@ -101,7 +103,7 @@ export class Cache extends EventEmitter implements Cache {
         return ttl <= 0;
     }
 
-    async set(key: string, value: any, options: CacheSetOptions = {}) {
+    async set(key: string, value: any, options: WatcherSetOptions = {}) {
         const id = this.extendKey(key);
 
         let milliseconds : number;
@@ -117,6 +119,7 @@ export class Cache extends EventEmitter implements Cache {
             milliseconds = 300 * 1000;
         }
 
+        /* istanbul ignore next */
         if (options.keepTTL) {
             if (options.ifExists) {
                 await this.client.set(id, JSON.stringify(value), 'KEEPTTL', 'XX');
@@ -138,7 +141,7 @@ export class Cache extends EventEmitter implements Cache {
         }
     }
 
-    async get(id: string) : Promise<undefined | any> {
+    async get<T = any>(id: string) : Promise<undefined | T> {
         const idPath = this.extendKey(id);
 
         try {
@@ -147,7 +150,7 @@ export class Cache extends EventEmitter implements Cache {
                 return undefined;
             }
 
-            return JSON.parse(entry);
+            return JSON.parse(entry) as T;
         } catch (e) {
             /* istanbul ignore next */
             return undefined;
@@ -163,9 +166,13 @@ export class Cache extends EventEmitter implements Cache {
     //--------------------------------------------------------------------
 
     protected extendKey(id: string) {
-        return stringifyKey({
-            prefix: this.options.prefix || 'cache',
-            id,
-        });
+        if (this.options.prefix) {
+            return stringifyKey({
+                prefix: this.options.prefix,
+                id,
+            });
+        }
+
+        return id;
     }
 }

@@ -16,8 +16,8 @@ This is a library to
 - [Usage](#usage)
   - [Config](#config)
   - [Singleton](#singleton)
-  - [Cache](#cache)
-  - [Tracker](#tracker)
+  - [Watcher](#watcher)
+  - [ScoreBoard](#scoreboard)
 - [License](#license)
 
 ## Installation
@@ -110,91 +110,72 @@ const cluster = useCluster('alias');
 })();
 ```
 
-### Cache
-
-The cache submodule requires a Redis instance,
-which can either be created with this library or with the underneath ioredis driver itself.
+### Watcher
 
 ```typescript
 import {
-    Cache,
-    useClient
+    Watcher,
+    createClient
 } from "redis-extension";
 
-(async () => {
-    type User = {
-        id: number,
-        name: string,
-        realm_id: string
-    };
+const client = createClient();
 
-    const cache = new Cache<number, User>(
-        {
-            redis: useClient()
-        },
-        {
-            prefix: 'user',
-            context: {
-                realm_id: 'master'
-            }
-        }
-    );
-
-    // Register events
-    cache.on('expired', (data) => {
-        console.log(data);
-        // { id: 'foo', prefix: 'user', context: {realm_id: 'master'}
-
-        // Important: The value will not be part of the expired event payload!
-    });
-
-    // Start scheduler to watch cached entries and trigger specific events.
-    await cache.start();
-
-    await cache.set('foo', 'bar');
-    const payload = cache.get('foo');
-    console.log(payload);
-    // bar
+const watcher = new Watcher(client, {
+    prefix: 'user',
 });
+
+// Register events
+watcher.on('expired', (data) => {
+    console.log(data);
+    // { id: '51f3509d-871b-48ad-af15-d1c9eb941362', prefix: 'user' }
+
+    // Important: The value will not be part of the expired event payload!
+});
+
+// Start scheduler to watch for expired cache entries
+await watcher.start();
+
+await watcher.set('51f3509d-871b-48ad-af15-d1c9eb941362', {
+    name: 'admin',
+    // ...
+});
+const payload = watcher.get('51f3509d-871b-48ad-af15-d1c9eb941362');
+console.log(payload);
+// { name: 'admin', ... }
 ```
 
-### Tracker
+### ScoreBoard
 
 ```typescript
 import {
-    Tracker,
-    useClient
+    createClient,
+    ScoreBoard,
 } from "redis-extension";
 
-(async () => {
-    const tracker = new Tracker<number>(
-        {
-            redis: useClient()
-        },
-        {
-            prefix: 'users-online'
-        }
-    );
+const client = createClient();
 
-    // add user with id: 1 to the stack (time: 1642423766)
-    tracker.add(1);
+const scoreBoard = new ScoreBoard(client, {
+    key: 'users-online'
+});
 
-    // add user with id: 2 to the stack (time: 1642423866)
-    tracker.add(2);
+// add user with id: 1 to the stack (time: 1642423766)
+scoreBoard.set(1);
 
-    const items = tracker.getMeta({
-        sort: 'DESC'
-    });
+// add user with id: 2 to the stack (time: 1642423866)
+scoreBoard.set(2);
 
-    console.log(items);
-    // {
-    //      data: [
-    //          {id: 1, score: 1642423766},
-    //          {id: 2, score: 1642423866}
-    //      ],
-    //      meta: {}
-    // }
-})();
+const items = scoreBoard.getMeta({
+    sort: 'DESC'
+});
+
+console.log(items);
+// {
+//      data: [
+//          {key: 1, score: 1642423766},
+//          {key: 2, score: 1642423866}
+//      ],
+//      meta: {}
+// }
 
 ```
 

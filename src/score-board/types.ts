@@ -5,17 +5,18 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type TrackerItem<ID> = {
-    id: ID,
+export type ScoreBoardItem = {
+    id: string,
     score: number
 };
 
-export type TrackerOptions = {
-    prefix?: string,
-    suffix?: string
+export type ScoreBoardOptions = {
+    key: string
 };
 
-export type TrackerGetManyOptions = {
+export type ScoreBoardOptionsInput = Partial<ScoreBoardOptions>;
+
+export type ScoreBoardGetManyOptions = {
     limit?: number,
     offset?: number,
     /**
