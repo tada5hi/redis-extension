@@ -5,22 +5,24 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import RealIORedis from "ioredis-mock";
-import {Cache} from "../../../src";
+import type { Client } from '../../../src';
+import { Cache, createClient } from '../../../src';
 
-describe('src/cache/index.ts', function () {
-    it('should build cache path', () => {
-        const cache = new Cache<string>({
-            redis: new RealIORedis()
+describe('src/cache/index.ts', () => {
+    let client: Client;
+
+    beforeAll(async () => {
+        client = createClient({
+            connectionString: process.env.REDIS_CONNECTION_STRING,
         });
+    });
 
-        expect(cache.buildKey({id: 'id'})).toEqual('cache#id');
+    afterAll(async () => {
+        client.disconnect();
     });
 
     it('should create & drop cache', async () => {
-        const cache = new Cache<string>({
-            redis: new RealIORedis()
-        });
+        const cache = new Cache(client);
 
         await cache.set('id', 'abc');
         let cached = await cache.get('id');
@@ -38,55 +40,54 @@ describe('src/cache/index.ts', function () {
         expect(isExpired).toEqual(true);
     });
 
-    it('should create & drop cache with no value', async () => {
-        const cache = new Cache<string>({
-            redis: new RealIORedis()
-        });
+    it('should cache object', async () => {
+        const record = {
+            num: 1,
+            str: 'string',
+            bool: true,
+        };
+        const cache = new Cache(client);
+        await cache.set('id', record);
 
-        await cache.set('id');
-        let cached = await cache.get('id');
-        expect(cached).toEqual(true);
-
-        let isExpired = await cache.isExpired('id');
-        expect(isExpired).toEqual(false);
-
-        await cache.drop('id');
+        const output = await cache.get('id');
+        expect(output).toEqual(record);
     });
 
-    it('should create & drop cache with context', async () => {
-        const cache = new Cache<string, {realm_id: string}>({
-            redis: new RealIORedis()
+    it('fire started & stopped event', (done) => {
+        expect.assertions(2);
+
+        const cache = new Cache(client);
+        cache.on('started', () => {
+            expect(true).toBeTruthy();
+            cache.stop();
         });
 
-        const context = {
-            realm_id: 'master'
-        }
+        cache.on('stopped', () => {
+            expect(true).toBeTruthy();
+            done();
+        });
 
-        await cache.set('id', 'abc', {context});
-        let cached = await cache.get('id', context);
-        expect(cached).toEqual('abc');
+        Promise.resolve()
+            .then(() => cache.start());
+    });
 
-        cached = await cache.get('id');
-        expect(cached).toEqual(undefined);
+    it('should fire expired event', (done) => {
+        expect.assertions(2);
 
-        let isExpired = await cache.isExpired('id', context);
-        expect(isExpired).toEqual(false);
+        const cache = new Cache(client, {
+            prefix: 'baz',
+        });
+        cache.set('foo', 'bar', { milliseconds: 300 });
+        cache.on('expired', (result) => {
+            expect(result.prefix).toEqual('baz');
+            expect(result.id).toEqual('foo');
 
-        isExpired = await cache.isExpired('id');
-        expect(isExpired).toEqual(true);
+            cache.stop();
 
-        await cache.drop('id', context);
+            done();
+        });
 
-        cached = await cache.get('id', context);
-        expect(cached).toEqual(undefined);
-
-        cached = await cache.get('id');
-        expect(cached).toEqual(undefined);
-
-        isExpired = await cache.isExpired('id', context);
-        expect(isExpired).toEqual(true);
-
-        isExpired = await cache.isExpired('id');
-        expect(isExpired).toEqual(true);
+        Promise.resolve()
+            .then(() => cache.start());
     });
 });

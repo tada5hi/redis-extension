@@ -5,52 +5,46 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
+import type { Client } from '../driver';
 import type {
-    TrackerContext,
+    TrackerGetManyOptions,
     TrackerItem,
     TrackerOptions,
-} from './type';
-import type { KeyOptions, KeyPathID, KeyReference } from '../type';
-import { buildKeyPath } from '../utils';
+} from './types';
+import { stringifyKey } from '../key';
 
-export class Tracker<
-    K extends string | number = string | number,
-    O extends KeyReference = never,
-> {
-    protected context: TrackerContext;
+export class Tracker {
+    protected client: Client;
 
-    protected options: TrackerOptions<K, O>;
+    protected options: TrackerOptions;
 
-    constructor(context: TrackerContext, options?: TrackerOptions<K, O>) {
-        options ??= {};
-
-        this.context = context;
+    constructor(client: Client, options: TrackerOptions = {}) {
+        this.client = client;
         this.options = options;
     }
 
     //--------------------------------------------------------------------
 
-    async getTotal(context?: O) : Promise<number | undefined> {
-        return this.context.redis.zcard(this.buildKey({ context }));
+    async getTotal() : Promise<number | undefined> {
+        return this.client.zcard(this.buildKey('score'));
     }
 
-    async getMany(options?: {context?: O, limit?: number, offset?: number, sort?: 'ASC' | 'DESC'}) {
-        options ??= {};
+    async getMany(options: TrackerGetManyOptions = {}) {
         options.sort = options.sort || 'DESC';
 
         let data : string[];
 
         if (typeof options.limit === 'undefined') {
             if (options.sort === 'DESC') {
-                data = await this.context.redis.zrevrangebyscore(
-                    this.buildKey({ context: options.context }),
+                data = await this.client.zrevrangebyscore(
+                    this.buildKey('score'),
                     '+inf',
                     '-inf',
                     'WITHSCORES',
                 );
             } else {
-                data = await this.context.redis.zrangebyscore(
-                    this.buildKey({ context: options.context }),
+                data = await this.client.zrangebyscore(
+                    this.buildKey('score'),
                     '-inf',
                     '+inf',
                     'WITHSCORES',
@@ -59,8 +53,8 @@ export class Tracker<
         } else {
             options.offset ??= 0;
             if (options.sort === 'DESC') {
-                data = await this.context.redis.zrevrangebyscore(
-                    this.buildKey({ context: options.context }),
+                data = await this.client.zrevrangebyscore(
+                    this.buildKey('score'),
                     '+inf',
                     '-inf',
                     'WITHSCORES',
@@ -69,8 +63,8 @@ export class Tracker<
                     options.limit,
                 );
             } else {
-                data = await this.context.redis.zrangebyscore(
-                    this.buildKey({ context: options.context }),
+                data = await this.client.zrangebyscore(
+                    this.buildKey('score'),
                     '-inf',
                     '+inf',
                     'WITHSCORES',
@@ -81,11 +75,11 @@ export class Tracker<
             }
         }
 
-        const items : TrackerItem<KeyPathID<K, O>>[] = [];
+        const items : TrackerItem<string>[] = [];
 
         for (let i = 0; i < data.length; i += 2) {
             items.push({
-                id: data[i] as unknown as KeyPathID<K, O>, // todo: maybe str -> number
+                id: data[i], // todo: maybe str -> number
                 score: parseInt(data[i + 1], 10),
             });
         }
@@ -101,42 +95,40 @@ export class Tracker<
 
     //--------------------------------------------------------------------
 
-    async add(id: KeyPathID<K, O>, options?: {context?: O, meta?: Record<string, any>}) {
-        options ??= {};
-
-        await this.context.redis.zadd(
-            this.buildKey({ context: options.context }),
-            parseInt(Date.now().toFixed(), 10),
+    async add(id: string, options: { meta?: Record<string, any> } = {}) {
+        await this.client.zadd(
+            this.buildKey('score'),
+            performance.now(),
             `${id}`,
         );
 
         if (options.meta) {
-            await this.setMeta(id, options.meta, options.context);
+            await this.setMeta(id, options.meta);
         }
     }
 
-    async drop(id: KeyPathID<K, O>, context?: O) {
-        await this.context.redis.zrem(
-            this.buildKey({ context }),
+    async drop(id: string) {
+        await this.client.zrem(
+            this.buildKey('score'),
             `${id}`,
         );
 
-        await this.dropMeta(id, context);
+        await this.dropMeta(id);
     }
 
     //--------------------------------------------------------------------
 
-    public async setMeta(id: KeyPathID<K, O>, meta: Record<string, any>, context?: O) {
-        await this.context.redis.hset(
-            this.buildMetaKey(context),
+    public async setMeta(id: string, meta: Record<string, any>) {
+        await this.client.hset(
+            this.buildKey('meta'),
             `${id}`,
             JSON.stringify(meta),
         );
     }
 
-    public async getMeta(id: KeyPathID<K, O>, context?: O) : Promise<Record<string, any> | undefined> {
-        const data = await this.context.redis.hget(
-            this.buildMetaKey(context),
+    public async getMeta(id: string) : Promise<Record<string, any> | undefined> {
+        const data = await this.client.hget(
+            this.buildKey('meta'),
             `${id}`,
         );
 
@@ -147,21 +139,17 @@ export class Tracker<
         return JSON.parse(data);
     }
 
-    public async dropMeta(id: KeyPathID<K, O>, context?: O) {
-        await this.context.redis.hdel(this.buildMetaKey(context), `${id}`);
+    public async dropMeta(id: string) {
+        await this.client.hdel(this.buildKey('meta'), `${id}`);
     }
 
     //--------------------------------------------------------------------
 
-    buildKey(options: KeyOptions<K, O>) {
-        return buildKeyPath({
+    protected buildKey(id: 'meta' | 'score') {
+        return stringifyKey({
             ...this.options,
-            ...options,
             prefix: this.options.prefix || 'tracker',
+            id,
         });
-    }
-
-    buildMetaKey(context?: O) {
-        return `${this.buildKey({ context })}.meta`;
     }
 }

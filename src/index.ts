@@ -8,6 +8,5 @@
 export * from './cache';
 export * from './config';
 export * from './driver';
+export * from './key';
 export * from './tracker';
-export * from './type';
-export * from './utils';

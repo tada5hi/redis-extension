@@ -7,17 +7,13 @@
 
 import { EventEmitter } from 'events';
 import type { Redis } from 'ioredis';
-import type { CacheContext, CacheOptions } from './type';
-import type {
-    KeyOptions, KeyPathID, KeyPathParseResult, KeyReference,
-} from '../type';
-import { buildKeyPath, parseKeyPath } from '../utils';
+import type { CacheOptionsInput, CacheSetOptions } from './types';
+import type { Key } from '../key';
+import { parseKey, stringifyKey } from '../key';
 
-export declare interface Cache<
-    K extends string | number = string | number,
-    O extends KeyReference = never,
-    > {
-    on(event: 'expired', listener: (key: KeyPathParseResult<K, O>) => void): this;
+// eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
+export declare interface Cache {
+    on(event: 'expired', listener: (key: Key) => void): this;
     on(event: 'started', listener: () => void): this;
     on(event: 'stopped', listener: () => void): this;
     on(event: 'failed', listener: (message: string, meta: unknown) => string) : this;
@@ -25,25 +21,22 @@ export declare interface Cache<
 }
 
 // eslint-disable-next-line @typescript-eslint/no-unsafe-declaration-merging
-export class Cache<
-    K extends string | number = string | number,
-    O extends KeyReference = never,
-> extends EventEmitter {
-    protected subscriber : Redis | undefined;
+export class Cache extends EventEmitter implements Cache {
+    protected client: Redis;
 
-    protected context : CacheContext;
+    protected subscriberClient : Redis | undefined;
 
-    protected options : CacheOptions<K, O>;
+    protected options : CacheOptionsInput;
 
     //--------------------------------------------------------------------
 
     constructor(
-        context: CacheContext,
-        options: CacheOptions<K, O> = {},
+        client: Redis,
+        options: CacheOptionsInput = {},
     ) {
         super();
 
-        this.context = context;
+        this.client = client;
         this.options = options;
     }
 
@@ -51,35 +44,27 @@ export class Cache<
 
     /* istanbul ignore next */
     async start() : Promise<void> {
-        if (this.subscriber) {
+        if (this.subscriberClient) {
             return;
         }
 
-        const subscriber = this.context.redis.duplicate();
+        const subscriber = this.client.duplicate();
 
         await subscriber.config('SET', 'notify-keyspace-events', 'Ex');
         await subscriber.psubscribe('__key*__:*');
 
         const handleResult = (input: unknown) => {
-            const result = this.parseKey(input);
-
-            if (typeof result === 'undefined') {
+            if (typeof input !== 'string' || input.length === 0) {
                 this.emit('failed', 'Expired key could not be parsed.', input);
                 return;
             }
+
+            const result = parseKey(input);
 
             if (
                 this.options &&
                 this.options.prefix &&
                 this.options.prefix !== result.prefix
-            ) {
-                return;
-            }
-
-            if (
-                this.options &&
-                this.options.suffix &&
-                this.options.suffix !== result.suffix
             ) {
                 return;
             }
@@ -91,52 +76,73 @@ export class Cache<
             handleResult(message);
         });
 
-        this.subscriber = subscriber;
+        this.subscriberClient = subscriber;
         this.emit('started');
     }
 
     /* istanbul ignore next */
     async stop() : Promise<void> {
-        if (!this.subscriber) return;
+        if (!this.subscriberClient) return;
 
-        await this.subscriber.punsubscribe('__key*__:*');
-        this.subscriber = undefined;
+        await this.subscriberClient.punsubscribe('__key*__:*');
+        this.subscriberClient.disconnect();
+        this.subscriberClient = undefined;
 
         this.emit('stopped');
     }
 
     //--------------------------------------------------------------------
 
-    async isExpired(id: KeyPathID<K, O>, context?: O) : Promise<boolean> {
-        const idPath = this.buildKey({ id, context });
+    async isExpired(id: string) : Promise<boolean> {
+        const idPath = this.extendKey(id);
 
-        const ttl = await this.context.redis.ttl(idPath);
+        const ttl = await this.client.ttl(idPath);
 
         return ttl <= 0;
     }
 
-    async set(id: KeyPathID<K, O>, value?: any, options?: {seconds?: number, context?: O}) {
-        options ??= {};
+    async set(key: string, value: any, options: CacheSetOptions = {}) {
+        const id = this.extendKey(key);
 
-        const idPath = this.buildKey({ id, context: options.context });
-        const seconds = options.seconds ?? this.options.seconds ?? 300;
-
-        if (typeof value === 'undefined') {
-            const expireSet: number = await this.context.redis.expire(idPath, seconds);
-
-            if (expireSet === 0) {
-                await this.context.redis.set(idPath, 'true', 'EX', seconds);
-            }
+        let milliseconds : number;
+        if (options.milliseconds) {
+            milliseconds = options.milliseconds;
+        } else if (options.seconds) {
+            milliseconds = options.seconds * 1000;
+        } else if (this.options.milliseconds) {
+            milliseconds = this.options.milliseconds;
+        } else if (this.options.seconds) {
+            milliseconds = this.options.seconds * 1000;
         } else {
-            await this.context.redis.set(idPath, JSON.stringify(value), 'EX', seconds);
+            milliseconds = 300 * 1000;
+        }
+
+        if (options.keepTTL) {
+            if (options.ifExists) {
+                await this.client.set(id, JSON.stringify(value), 'KEEPTTL', 'XX');
+            } else if (options.ifNotExists) {
+                await this.client.set(id, JSON.stringify(value), 'KEEPTTL', 'NX');
+            } else {
+                await this.client.set(id, JSON.stringify(value), 'KEEPTTL');
+            }
+
+            return;
+        }
+
+        if (options.ifExists) {
+            await this.client.set(id, JSON.stringify(value), 'PX', milliseconds, 'XX');
+        } else if (options.ifNotExists) {
+            await this.client.set(id, JSON.stringify(value), 'PX', milliseconds, 'NX');
+        } else {
+            await this.client.set(id, JSON.stringify(value), 'PX', milliseconds);
         }
     }
 
-    async get(id: KeyPathID<K, O>, context?: O) : Promise<undefined | any> {
-        const idPath = this.buildKey({ id, context });
+    async get(id: string) : Promise<undefined | any> {
+        const idPath = this.extendKey(id);
 
         try {
-            const entry = await this.context.redis.get(idPath);
+            const entry = await this.client.get(idPath);
             if (entry === null || typeof entry === 'undefined') {
                 return undefined;
             }
@@ -148,35 +154,18 @@ export class Cache<
         }
     }
 
-    async drop(id: KeyPathID<K, O>, context?: O) : Promise<boolean> {
-        const idPath = this.buildKey({ id, context });
+    async drop(id: string) : Promise<boolean> {
+        const idPath = this.extendKey(id);
 
-        return await this.context.redis.del(idPath) === 1;
+        return await this.client.del(idPath) === 1;
     }
 
     //--------------------------------------------------------------------
 
-    buildKey(options: KeyOptions<K, O>) {
-        return buildKeyPath(this.buildOptions(options));
-    }
-
-    parseKey(key: unknown) : KeyPathParseResult<K, O> | undefined {
-        if (typeof key !== 'string') {
-            return undefined;
-        }
-
-        return parseKeyPath(key);
-    }
-
-    //--------------------------------------------------------------------
-
-    buildOptions(options?: KeyOptions<K, O>) : CacheOptions<K, O> {
-        options ??= {};
-
-        return {
-            ...this.options,
-            ...options,
+    protected extendKey(id: string) {
+        return stringifyKey({
             prefix: this.options.prefix || 'cache',
-        } as CacheOptions<K, O>;
+            id,
+        });
     }
 }
