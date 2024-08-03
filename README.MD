@@ -16,6 +16,7 @@ This is a library to
 - [Usage](#usage)
   - [Config](#config)
   - [Singleton](#singleton)
+  - [JsonAdapter](#jsonadapter)
   - [Watcher](#watcher)
   - [ScoreBoard](#scoreboard)
 - [License](#license)
@@ -110,6 +111,26 @@ const cluster = useCluster('alias');
 })();
 ```
 
+### JsonAdapter
+
+```typescript
+import {
+    JsonAdapter,
+    createClient
+} from "redis-extension";
+
+const client = createClient();
+
+const jsonAdapter = new JsonAdapter(client);
+await jsonAdapter.set('51f3509d-871b-48ad-af15-d1c9eb941362', {
+    name: 'admin',
+    // ...
+});
+const payload = jsonAdapter.get('51f3509d-871b-48ad-af15-d1c9eb941362');
+console.log(payload);
+// { name: 'admin', ... }
+```
+
 ### Watcher
 
 ```typescript
@@ -119,6 +140,7 @@ import {
 } from "redis-extension";
 
 const client = createClient();
+client.set('foo', 'bar', 'PX', '500');
 
 const watcher = new Watcher(client, {
     prefix: 'user',
@@ -127,21 +149,13 @@ const watcher = new Watcher(client, {
 // Register events
 watcher.on('expired', (data) => {
     console.log(data);
-    // { id: '51f3509d-871b-48ad-af15-d1c9eb941362', prefix: 'user' }
+    // { id: 'foo', prefix: 'user' }
 
     // Important: The value will not be part of the expired event payload!
 });
 
 // Start scheduler to watch for expired cache entries
 await watcher.start();
-
-await watcher.set('51f3509d-871b-48ad-af15-d1c9eb941362', {
-    name: 'admin',
-    // ...
-});
-const payload = watcher.get('51f3509d-871b-48ad-af15-d1c9eb941362');
-console.log(payload);
-// { name: 'admin', ... }
 ```
 
 ### ScoreBoard

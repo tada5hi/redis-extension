@@ -8,5 +8,6 @@
 export * from './watcher';
 export * from './config';
 export * from './driver';
+export * from './json-adapter';
 export * from './key';
 export * from './score-board';
