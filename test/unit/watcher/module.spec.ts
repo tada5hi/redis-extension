@@ -21,29 +21,11 @@ describe('watcher', () => {
         client.disconnect();
     });
 
-    it('fire started & stopped event', (done) => {
-        expect.assertions(2);
-
-        const watcher = new Watcher(client);
-        watcher.on('started', () => {
-            expect(true).toBeTruthy();
-            watcher.stop();
-        });
-
-        watcher.on('stopped', () => {
-            expect(true).toBeTruthy();
-            done();
-        });
-
-        Promise.resolve()
-            .then(() => watcher.start());
-    });
-
     it('should fire expired event', (done) => {
         expect.assertions(1);
 
         const watcher = new Watcher(client);
-        watcher.on('expired', (result) => {
+        watcher.on('expire', (result) => {
             expect(result.id).toEqual('foo');
 
             watcher.stop();
@@ -54,5 +36,23 @@ describe('watcher', () => {
         Promise.resolve()
             .then(() => watcher.start())
             .then(() => client.set('foo', 'bar', 'PX', 300));
+    });
+
+    it('should fire del event', (done) => {
+        expect.assertions(1);
+
+        const watcher = new Watcher(client);
+        watcher.on('del', (result) => {
+            expect(result.id).toEqual('foo');
+
+            watcher.stop();
+
+            done();
+        });
+
+        Promise.resolve()
+            .then(() => watcher.start())
+            .then(() => client.set('foo', 'bar'))
+            .then(() => client.del('foo'));
     });
 });

@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
+import type { WatcherEvent } from './consants';
 import type { WatcherOptions } from './types';
 import type { Key } from '../key';
 import { parseKey } from '../key';
@@ -15,6 +16,8 @@ export class Watcher extends EventEmitter {
     protected client: Redis;
 
     protected subscriberClient : Redis | undefined;
+
+    protected subscribePattern: string;
 
     protected options : WatcherOptions;
 
@@ -28,19 +31,24 @@ export class Watcher extends EventEmitter {
 
         this.client = client;
         this.options = options;
+
+        let pattern : string;
+        if (this.options.prefix) {
+            pattern = `__key*__:${this.options.prefix.replace(/([*?[\]\\])/g, '\\$1')}*`;
+        } else {
+            pattern = '__key*__:*';
+        }
+
+        this.subscribePattern = pattern;
     }
 
     //--------------------------------------------------------------------
 
-    override on(event: 'expired', listener: (key: Key) => void) : this;
+    override on(event: `${WatcherEvent}`, listener: (key: Key) => any) : this;
 
-    override on(event: 'started', listener: () => void) : this;
+    override on(event: 'error', listener: (error: Error) => any) : this;
 
-    override on(event: 'stopped', listener: () => void) : this;
-
-    override on(event: 'failed', listener: (message: string, meta: unknown) => string) : this;
-
-    override on(event: string, listener: (...args: any[]) => void) : this {
+    override on(event: string, listener: (...args: any[]) => any) : this {
         return super.on(event, listener);
     }
 
@@ -52,44 +60,44 @@ export class Watcher extends EventEmitter {
 
         const subscriber = this.client.duplicate();
 
-        await subscriber.config('SET', 'notify-keyspace-events', 'Ex');
-        await subscriber.psubscribe('__key*__:*');
+        await subscriber.config('SET', 'notify-keyspace-events', 'KA');
 
-        const handleResult = (input: unknown) => {
-            if (typeof input !== 'string' || input.length === 0) {
-                this.emit('failed', 'Expired key could not be parsed.', input);
-                return;
-            }
+        await subscriber.psubscribe(this.subscribePattern);
 
-            const result = parseKey(input);
+        const handleMessage = (key: string, event: string) => {
+            const result = parseKey(key);
 
-            if (
-                this.options &&
-                this.options.prefix &&
-                this.options.prefix !== result.prefix
-            ) {
-                return;
-            }
-
-            this.emit('expired', result);
+            this.emit(event, result);
         };
 
-        subscriber.on('pmessage', (_pattern, _channel, message) => {
-            handleResult(message);
+        subscriber.on('error', (error) => {
+            this.emit('error', error);
+        });
+
+        subscriber.on('pmessage', (_pattern, _channel, event) => {
+            if (_pattern !== this.subscribePattern) {
+                return;
+            }
+
+            if (!_channel.startsWith('__keyspace')) {
+                return;
+            }
+
+            const key = _channel.split('__:').pop();
+            if (key && key.length > 0) {
+                handleMessage(key, event);
+            }
         });
 
         this.subscriberClient = subscriber;
-        this.emit('started');
     }
 
     /* istanbul ignore next */
     async stop() : Promise<void> {
         if (!this.subscriberClient) return;
 
-        await this.subscriberClient.punsubscribe('__key*__:*');
+        await this.subscriberClient.punsubscribe(this.subscribePattern);
         this.subscriberClient.disconnect();
         this.subscriberClient = undefined;
-
-        this.emit('stopped');
     }
 }
