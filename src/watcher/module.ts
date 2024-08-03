@@ -7,9 +7,9 @@
 
 import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
-import type { WatcherOptions, WatcherSetOptions } from './types';
+import type { WatcherOptions } from './types';
 import type { Key } from '../key';
-import { parseKey, stringifyKey } from '../key';
+import { parseKey } from '../key';
 
 export class Watcher extends EventEmitter {
     protected client: Redis;
@@ -91,88 +91,5 @@ export class Watcher extends EventEmitter {
         this.subscriberClient = undefined;
 
         this.emit('stopped');
-    }
-
-    //--------------------------------------------------------------------
-
-    async isExpired(id: string) : Promise<boolean> {
-        const idPath = this.extendKey(id);
-
-        const ttl = await this.client.ttl(idPath);
-
-        return ttl <= 0;
-    }
-
-    async set(key: string, value: any, options: WatcherSetOptions = {}) {
-        const id = this.extendKey(key);
-
-        let milliseconds : number;
-        if (options.milliseconds) {
-            milliseconds = options.milliseconds;
-        } else if (options.seconds) {
-            milliseconds = options.seconds * 1000;
-        } else if (this.options.milliseconds) {
-            milliseconds = this.options.milliseconds;
-        } else if (this.options.seconds) {
-            milliseconds = this.options.seconds * 1000;
-        } else {
-            milliseconds = 300 * 1000;
-        }
-
-        /* istanbul ignore next */
-        if (options.keepTTL) {
-            if (options.ifExists) {
-                await this.client.set(id, JSON.stringify(value), 'KEEPTTL', 'XX');
-            } else if (options.ifNotExists) {
-                await this.client.set(id, JSON.stringify(value), 'KEEPTTL', 'NX');
-            } else {
-                await this.client.set(id, JSON.stringify(value), 'KEEPTTL');
-            }
-
-            return;
-        }
-
-        if (options.ifExists) {
-            await this.client.set(id, JSON.stringify(value), 'PX', milliseconds, 'XX');
-        } else if (options.ifNotExists) {
-            await this.client.set(id, JSON.stringify(value), 'PX', milliseconds, 'NX');
-        } else {
-            await this.client.set(id, JSON.stringify(value), 'PX', milliseconds);
-        }
-    }
-
-    async get<T = any>(id: string) : Promise<undefined | T> {
-        const idPath = this.extendKey(id);
-
-        try {
-            const entry = await this.client.get(idPath);
-            if (entry === null || typeof entry === 'undefined') {
-                return undefined;
-            }
-
-            return JSON.parse(entry) as T;
-        } catch (e) {
-            /* istanbul ignore next */
-            return undefined;
-        }
-    }
-
-    async drop(id: string) : Promise<boolean> {
-        const idPath = this.extendKey(id);
-
-        return await this.client.del(idPath) === 1;
-    }
-
-    //--------------------------------------------------------------------
-
-    protected extendKey(id: string) {
-        if (this.options.prefix) {
-            return stringifyKey({
-                prefix: this.options.prefix,
-                id,
-            });
-        }
-
-        return id;
     }
 }

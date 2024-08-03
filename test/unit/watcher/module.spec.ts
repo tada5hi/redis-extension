@@ -21,64 +21,6 @@ describe('watcher', () => {
         client.disconnect();
     });
 
-    it('should set and get value', async () => {
-        const watcher = new Watcher(client);
-
-        await watcher.set('id', 'abc');
-        let value = await watcher.get('id');
-        expect(value).toEqual('abc');
-
-        let isExpired = await watcher.isExpired('id');
-        expect(isExpired).toEqual(false);
-
-        await watcher.drop('id');
-
-        value = await watcher.get('id');
-        expect(value).toEqual(undefined);
-
-        isExpired = await watcher.isExpired('id');
-        expect(isExpired).toEqual(true);
-    });
-
-    it('should set with ifNotExists options', async () => {
-        const watcher = new Watcher(client);
-
-        await watcher.set('id', 'foo');
-
-        let value = await watcher.get('id');
-        expect(value).toEqual('foo');
-
-        await watcher.set('id', 'bar', { ifNotExists: true });
-        value = await watcher.get('id');
-        expect(value).toEqual('foo');
-
-        await watcher.drop('id');
-    });
-
-    it('should set with ifExists options', async () => {
-        const watcher = new Watcher(client);
-
-        await watcher.set('id', 'foo', { ifExists: true });
-
-        const value = await watcher.get('id');
-        expect(value).toBeUndefined();
-    });
-
-    it('should set and get object', async () => {
-        const record = {
-            num: 1,
-            str: 'string',
-            bool: true,
-        };
-        const watcher = new Watcher(client);
-        await watcher.set('id', record);
-
-        const output = await watcher.get('id');
-        expect(output).toEqual(record);
-
-        await watcher.drop('id');
-    });
-
     it('fire started & stopped event', (done) => {
         expect.assertions(2);
 
@@ -98,14 +40,10 @@ describe('watcher', () => {
     });
 
     it('should fire expired event', (done) => {
-        expect.assertions(2);
+        expect.assertions(1);
 
-        const watcher = new Watcher(client, {
-            prefix: 'baz',
-        });
-        watcher.set('foo', 'bar', { milliseconds: 300 });
+        const watcher = new Watcher(client);
         watcher.on('expired', (result) => {
-            expect(result.prefix).toEqual('baz');
             expect(result.id).toEqual('foo');
 
             watcher.stop();
@@ -114,6 +52,7 @@ describe('watcher', () => {
         });
 
         Promise.resolve()
-            .then(() => watcher.start());
+            .then(() => watcher.start())
+            .then(() => client.set('foo', 'bar', 'PX', 300));
     });
 });
