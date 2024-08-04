@@ -5,22 +5,31 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type ScoreBoardItem = {
-    id: string,
-    score: number
-};
-
 export type ScoreBoardOptions = {
     key: string
 };
 
 export type ScoreBoardOptionsInput = Partial<ScoreBoardOptions>;
 
-export type ScoreBoardGetManyOptions = {
+export type ScoreBoardGetOptions = {
     limit?: number,
     offset?: number,
     /**
      * default: 'DESC'
      */
     sort?: 'ASC' | 'DESC'
+};
+
+export type ScoreBoardItem = {
+    id: string,
+    score: number
+};
+
+export type ScoreBoardGetOutput = {
+    meta: {
+        total: number,
+        limit?: number,
+        offset?: number
+    },
+    data: ScoreBoardItem[]
 };

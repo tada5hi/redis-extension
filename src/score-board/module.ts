@@ -7,7 +7,7 @@
 
 import type { Client } from '../driver';
 import type {
-    ScoreBoardGetManyOptions,
+    ScoreBoardGetOptions, ScoreBoardGetOutput,
     ScoreBoardItem,
     ScoreBoardOptions, ScoreBoardOptionsInput,
 } from './types';
@@ -27,11 +27,7 @@ export class ScoreBoard {
 
     //--------------------------------------------------------------------
 
-    async getTotal() : Promise<number | undefined> {
-        return this.client.zcard(this.options.key);
-    }
-
-    async getMany(options: ScoreBoardGetManyOptions = {}) {
+    async get(options: ScoreBoardGetOptions = {}) : Promise<ScoreBoardGetOutput> {
         options.sort = options.sort || 'DESC';
 
         let data : string[];
@@ -86,9 +82,12 @@ export class ScoreBoard {
             });
         }
 
+        const total = await this.client.zcard(this.options.key);
+
         return {
             data: items,
             meta: {
+                total: total || 0,
                 ...(options.limit ? { limit: options.limit } : {}),
                 ...(options.offset ? { offset: options.offset } : {}),
             },

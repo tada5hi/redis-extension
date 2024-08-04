@@ -173,22 +173,24 @@ const scoreBoard = new ScoreBoard(client, {
 });
 
 // add user with id: 1 to the stack (time: 1642423766)
-scoreBoard.set(1);
+scoreBoard.add(1);
 
 // add user with id: 2 to the stack (time: 1642423866)
-scoreBoard.set(2);
+scoreBoard.add(2);
 
-const items = scoreBoard.get({
+const output = scoreBoard.get({
     sort: 'DESC'
 });
 
-console.log(items);
+console.log(output);
 // {
 //      data: [
 //          {key: 1, score: 1642423766},
 //          {key: 2, score: 1642423866}
 //      ],
-//      meta: {}
+//      meta: {
+//          total: 2
+//      }
 // }
 
 ```

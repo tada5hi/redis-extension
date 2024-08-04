@@ -28,12 +28,12 @@ describe('score-board', () => {
         const scoreBoard = new ScoreBoard(client);
 
         await scoreBoard.add('foo');
-        let total = await scoreBoard.getTotal();
-        expect(total).toEqual(1);
+        let output = await scoreBoard.get();
+        expect(output.meta.total).toEqual(1);
 
         await scoreBoard.add('bar');
-        total = await scoreBoard.getTotal();
-        expect(total).toEqual(2);
+        output = await scoreBoard.get();
+        expect(output.meta.total).toEqual(2);
 
         await scoreBoard.clear();
     });
@@ -42,13 +42,13 @@ describe('score-board', () => {
         const scoreBoard = new ScoreBoard(client);
 
         await scoreBoard.add('foo');
-        let total = await scoreBoard.getTotal();
-        expect(total).toEqual(1);
+        let output = await scoreBoard.get();
+        expect(output.meta.total).toEqual(1);
 
         await scoreBoard.clear();
 
-        total = await scoreBoard.getTotal();
-        expect(total).toEqual(0);
+        output = await scoreBoard.get();
+        expect(output.meta.total).toEqual(0);
     });
 
     it('should drop & count entries', async () => {
@@ -58,8 +58,8 @@ describe('score-board', () => {
         await scoreBoard.add('bar');
         await scoreBoard.drop('bar');
 
-        const total = await scoreBoard.getTotal();
-        expect(total).toEqual(1);
+        const output = await scoreBoard.get();
+        expect(output.meta.total).toEqual(1);
 
         await scoreBoard.clear();
     });
@@ -71,29 +71,29 @@ describe('score-board', () => {
         await delay(0);
         await scoreBoard.add('bar');
 
-        let entities = await scoreBoard.getMany({ sort: 'ASC' });
-        let ids = entities.data.map((item) => item.id);
+        let output = await scoreBoard.get({ sort: 'ASC' });
+        let ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['foo', 'bar']);
-        expect(entities.meta).toEqual({});
+        expect(output.meta).toEqual({ total: 2 });
 
-        entities = await scoreBoard.getMany({ sort: 'DESC' });
-        ids = entities.data.map((item) => item.id);
+        output = await scoreBoard.get({ sort: 'DESC' });
+        ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['bar', 'foo']);
 
-        entities = await scoreBoard.getMany({ offset: 0, limit: 1, sort: 'ASC' });
-        ids = entities.data.map((item) => item.id);
+        output = await scoreBoard.get({ offset: 0, limit: 1, sort: 'ASC' });
+        ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['foo']);
 
-        entities = await scoreBoard.getMany({ offset: 1, limit: 1, sort: 'ASC' });
-        ids = entities.data.map((item) => item.id);
+        output = await scoreBoard.get({ offset: 1, limit: 1, sort: 'ASC' });
+        ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['bar']);
 
-        entities = await scoreBoard.getMany({ offset: 0, limit: 1, sort: 'DESC' });
-        ids = entities.data.map((item) => item.id);
+        output = await scoreBoard.get({ offset: 0, limit: 1, sort: 'DESC' });
+        ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['bar']);
 
-        entities = await scoreBoard.getMany({ offset: 1, limit: 1, sort: 'DESC' });
-        ids = entities.data.map((item) => item.id);
+        output = await scoreBoard.get({ offset: 1, limit: 1, sort: 'DESC' });
+        ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['foo']);
     });
 });
