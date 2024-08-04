@@ -5,20 +5,17 @@
 [![codecov](https://codecov.io/gh/tada5hi/redis-extension/branch/master/graph/badge.svg?token=0VL41WO0CG)](https://codecov.io/gh/tada5hi/redis-extension)
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 
-This is a library to
-- manage singleton client & cluster instances
-- cache entity identifiers in groups for a given time with scheduler to trigger callback(s) on expiration.
-- track entity identifiers in groups by creation date.
+This a library, which provides additional [features](#features) to the
+redis client library.
 
 **Table of Contents**
 
 - [Installation](#installation)
+- [Features](#features)
 - [Usage](#usage)
-  - [Config](#config)
-  - [Singleton](#singleton)
-  - [JsonAdapter](#jsonadapter)
   - [Watcher](#watcher)
   - [ScoreBoard](#scoreboard)
+  - [JsonAdapter](#jsonadapter)
 - [License](#license)
 
 ## Installation
@@ -27,109 +24,13 @@ This is a library to
 npm install redis-extension --save
 ```
 
+## Features
+
+- ️‍️🕵️‍♀️ **Watcher** - Watch for specific events
+- 🏆 **ScoreBoard** - Store keys by score.
+- 🔌 **JsonAdapter** - Stringify value as json string on set and parse on get
+
 ## Usage
-
-### Config
-
-To create a configuration for the driver `Client` or `Cluster`, a configuration must be specified,
-like described in the following:
-
-**Client**
-
-```typescript
-import {
-    setConfig
-} from "redis-extension";
-
-setConfig({
-    connectionString: 'redis://127.0.0.1',
-    options: {
-        reconnectOnError(error: Error): boolean {
-            return true;
-        }
-    }
-}, 'alias');
-```
-
-A configuration is always identified by a string, in this example: `alias` (default: `default`),
-so multiple configurations can be registered.
-
-In the upper example, the **options** property is used to pass information to the underneath driver (IORedis) and the **connectionString** (optional) property is a way
-to specify the Redis server to which the driver should connect to.
-
-**Cluster**
-
-```typescript
-import {
-    setConfig
-} from "redis-extension";
-
-setConfig({
-    clusterNodes: [
-        'redis://127.0.0.1'
-    ],
-    clusterOptions: {
-        // ...
-    }
-}, 'alias');
-```
-
-## Singleton
-
-A singleton instance associated for a given configuration key,
-can be acquired like described in the following:
-
-**Client**
-```typescript
-import {
-    useClient
-} from "redis-extension";
-
-const client = useClient('alias');
-
-(async () => {
-    await client.set('key', 'value');
-    const payload = await client.get('key');
-    console.log(payload);
-    // value
-})();
-```
-
-**Cluster**
-```typescript
-import {
-    useCluster
-} from "redis-extension";
-
-const cluster = useCluster('alias');
-
-(async () => {
-    await cluster.set('key', 'value');
-    const payload = await cluster.get('key');
-    console.log(payload);
-    // value
-})();
-```
-
-### JsonAdapter
-
-```typescript
-import {
-    JsonAdapter,
-    createClient
-} from "redis-extension";
-
-const client = createClient();
-
-const jsonAdapter = new JsonAdapter(client);
-await jsonAdapter.set('51f3509d-871b-48ad-af15-d1c9eb941362', {
-    name: 'admin',
-    // ...
-});
-const payload = jsonAdapter.get('51f3509d-871b-48ad-af15-d1c9eb941362');
-console.log(payload);
-// { name: 'admin', ... }
-```
 
 ### Watcher
 
@@ -152,7 +53,7 @@ watcher.on('expire', (key) => {
     // foo
 });
 
-// Start scheduler to watch for expired cache entries
+// Start watching
 await watcher.start();
 ```
 
@@ -190,10 +91,29 @@ console.log(output);
 //          total: 2
 //      }
 // }
-
 ```
 
-The `score` property represents the unix timestamp, when the entry was added.
+The `score` property represents the unix timestamp by default if it has not been set otherwise.
+
+### JsonAdapter
+
+```typescript
+import {
+    JsonAdapter,
+    createClient
+} from "redis-extension";
+
+const client = createClient();
+
+const jsonAdapter = new JsonAdapter(client);
+await jsonAdapter.set('51f3509d-871b-48ad-af15-d1c9eb941362', {
+    name: 'admin',
+    // ...
+});
+const payload = jsonAdapter.get('51f3509d-871b-48ad-af15-d1c9eb941362');
+console.log(payload);
+// { name: 'admin', ... }
+```
 
 ## License
 
