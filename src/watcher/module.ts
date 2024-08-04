@@ -9,8 +9,6 @@ import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
 import type { WatcherEvent } from './consants';
 import type { WatcherOptions } from './types';
-import type { Key } from '../key';
-import { parseKey } from '../key';
 
 export class Watcher extends EventEmitter {
     protected client: Redis;
@@ -50,7 +48,7 @@ export class Watcher extends EventEmitter {
 
     //--------------------------------------------------------------------
 
-    override on(event: `${WatcherEvent}`, listener: (key: Key) => any) : this;
+    override on(event: `${WatcherEvent}`, listener: (key: string) => any) : this;
 
     override on(event: 'error', listener: (error: Error) => any) : this;
 
@@ -85,7 +83,7 @@ export class Watcher extends EventEmitter {
 
             const key = _channel.split('__:').pop();
             if (key && key.length > 0) {
-                this.emit(event, parseKey(key));
+                this.emit(event, key);
             }
         });
 

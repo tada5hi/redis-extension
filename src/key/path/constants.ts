@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export enum KeySeparator {
+export enum KeyPathSeparator {
     PREFIX = '#p#',
     SUFFIX = '#s#',
 }

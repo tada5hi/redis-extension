@@ -147,11 +147,9 @@ const watcher = new Watcher(client, {
 });
 
 // Register events
-watcher.on('expire', (data) => {
-    console.log(data);
-    // { id: 'foo', prefix: 'user' }
-
-    // Important: The value will not be part of the expired event payload!
+watcher.on('expire', (key) => {
+    console.log(key);
+    // foo
 });
 
 // Start scheduler to watch for expired cache entries
@@ -185,8 +183,8 @@ const output = scoreBoard.get({
 console.log(output);
 // {
 //      data: [
-//          {key: 1, score: 1642423766},
-//          {key: 2, score: 1642423866}
+//          {id: 1, score: 1642423766},
+//          {id: 2, score: 1642423866}
 //      ],
 //      meta: {
 //          total: 2

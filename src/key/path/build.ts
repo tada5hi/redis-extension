@@ -5,20 +5,20 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { KeySeparator } from './constants';
-import type { Key } from './types';
+import { KeyPathSeparator } from './constants';
+import type { KeyPath } from './types';
 
-export function stringifyKey(options: Key) : string {
+export function buildKeyPath(options: KeyPath) : string {
     const parts = [];
     if (options.prefix) {
         parts.push(options.prefix);
-        parts.push(KeySeparator.PREFIX);
+        parts.push(KeyPathSeparator.PREFIX);
     }
 
-    parts.push(options.id);
+    parts.push(options.key);
 
     if (options.suffix) {
-        parts.push(KeySeparator.SUFFIX);
+        parts.push(KeyPathSeparator.SUFFIX);
         parts.push(options.suffix);
     }
 

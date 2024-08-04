@@ -6,7 +6,7 @@
  */
 
 import type { Client } from '../../../src';
-import { Watcher, createClient, stringifyKey } from '../../../src';
+import { Watcher, buildKeyPath, createClient } from '../../../src';
 
 describe('watcher', () => {
     let client: Client;
@@ -22,24 +22,22 @@ describe('watcher', () => {
     });
 
     it('should watch specific key', (done) => {
-        expect.assertions(3);
+        expect.assertions(1);
 
-        const key = stringifyKey({
+        const keyPath = buildKeyPath({
             prefix: 'prefix',
-            id: 'key',
+            key: 'key',
             suffix: 'suffix',
         });
         const watcher = new Watcher(client, {
-            pattern: key,
+            pattern: keyPath,
         });
 
         watcher.on('error', (err) => {
             done(err);
         });
-        watcher.on('set', (result) => {
-            expect(result.prefix).toEqual('prefix');
-            expect(result.id).toEqual('key');
-            expect(result.suffix).toEqual('suffix');
+        watcher.on('set', (key) => {
+            expect(key).toEqual(keyPath);
 
             watcher.stop();
 
@@ -48,15 +46,18 @@ describe('watcher', () => {
 
         Promise.resolve()
             .then(() => watcher.start())
-            .then(() => client.set(key, 'bar', 'PX', 300));
+            .then(() => client.set(keyPath, 'bar', 'PX', 300));
     });
 
-    it('should watch and fire expired event', (done) => {
-        expect.assertions(1);
+    it('should watch and fire set & expire event', (done) => {
+        expect.assertions(2);
 
         const watcher = new Watcher(client);
-        watcher.on('expire', (result) => {
-            expect(result.id).toEqual('foo');
+        watcher.on('set', (key) => {
+            expect(key).toEqual('foo');
+        });
+        watcher.on('expire', (key) => {
+            expect(key).toEqual('foo');
 
             watcher.stop();
 
@@ -68,12 +69,16 @@ describe('watcher', () => {
             .then(() => client.set('foo', 'bar', 'PX', 300));
     });
 
-    it('should watch fire del event', (done) => {
-        expect.assertions(1);
+    it('should watch fire set & del event', (done) => {
+        expect.assertions(2);
 
         const watcher = new Watcher(client);
-        watcher.on('del', (result) => {
-            expect(result.id).toEqual('foo');
+        watcher.on('set', (key) => {
+            expect(key).toEqual('foo');
+        });
+
+        watcher.on('del', (key) => {
+            expect(key).toEqual('foo');
 
             watcher.stop();
 
