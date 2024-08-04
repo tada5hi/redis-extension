@@ -6,7 +6,7 @@
  */
 
 import type { Client } from '../driver';
-import type { WatcherSetOptions } from '../watcher';
+import type { JSONAdapterSetOptions } from './types';
 
 export class JsonAdapter {
     protected client : Client;
@@ -15,7 +15,7 @@ export class JsonAdapter {
         this.client = client;
     }
 
-    async set(key: string, value: any, options: WatcherSetOptions = {}) {
+    async set(key: string, value: any, options: JSONAdapterSetOptions = {}) {
         let milliseconds : number | undefined;
         if (options.milliseconds) {
             milliseconds = options.milliseconds;

@@ -143,11 +143,11 @@ const client = createClient();
 client.set('foo', 'bar', 'PX', '500');
 
 const watcher = new Watcher(client, {
-    prefix: 'user',
+    pattern: 'foo*',
 });
 
 // Register events
-watcher.on('expired', (data) => {
+watcher.on('expire', (data) => {
     console.log(data);
     // { id: 'foo', prefix: 'user' }
 
@@ -178,7 +178,7 @@ scoreBoard.set(1);
 // add user with id: 2 to the stack (time: 1642423866)
 scoreBoard.set(2);
 
-const items = scoreBoard.getMeta({
+const items = scoreBoard.get({
     sort: 'DESC'
 });
 

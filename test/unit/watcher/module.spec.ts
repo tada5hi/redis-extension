@@ -6,7 +6,7 @@
  */
 
 import type { Client } from '../../../src';
-import { Watcher, createClient } from '../../../src';
+import { Watcher, createClient, stringifyKey } from '../../../src';
 
 describe('watcher', () => {
     let client: Client;
@@ -21,29 +21,41 @@ describe('watcher', () => {
         client.disconnect();
     });
 
-    it('fire started & stopped event', (done) => {
-        expect.assertions(2);
+    it('should watch specific key', (done) => {
+        expect.assertions(3);
 
-        const watcher = new Watcher(client);
-        watcher.on('started', () => {
-            expect(true).toBeTruthy();
-            watcher.stop();
+        const key = stringifyKey({
+            prefix: 'prefix',
+            id: 'key',
+            suffix: 'suffix',
+        });
+        const watcher = new Watcher(client, {
+            pattern: key,
         });
 
-        watcher.on('stopped', () => {
-            expect(true).toBeTruthy();
+        watcher.on('error', (err) => {
+            done(err);
+        });
+        watcher.on('set', (result) => {
+            expect(result.prefix).toEqual('prefix');
+            expect(result.id).toEqual('key');
+            expect(result.suffix).toEqual('suffix');
+
+            watcher.stop();
+
             done();
         });
 
         Promise.resolve()
-            .then(() => watcher.start());
+            .then(() => watcher.start())
+            .then(() => client.set(key, 'bar', 'PX', 300));
     });
 
-    it('should fire expired event', (done) => {
+    it('should watch and fire expired event', (done) => {
         expect.assertions(1);
 
         const watcher = new Watcher(client);
-        watcher.on('expired', (result) => {
+        watcher.on('expire', (result) => {
             expect(result.id).toEqual('foo');
 
             watcher.stop();
@@ -54,5 +66,23 @@ describe('watcher', () => {
         Promise.resolve()
             .then(() => watcher.start())
             .then(() => client.set('foo', 'bar', 'PX', 300));
+    });
+
+    it('should watch fire del event', (done) => {
+        expect.assertions(1);
+
+        const watcher = new Watcher(client);
+        watcher.on('del', (result) => {
+            expect(result.id).toEqual('foo');
+
+            watcher.stop();
+
+            done();
+        });
+
+        Promise.resolve()
+            .then(() => watcher.start())
+            .then(() => client.set('foo', 'bar'))
+            .then(() => client.del('foo'));
     });
 });

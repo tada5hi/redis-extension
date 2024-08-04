@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
+import type { WatcherEvent } from './consants';
 import type { WatcherOptions } from './types';
 import type { Key } from '../key';
 import { parseKey } from '../key';
@@ -15,6 +16,8 @@ export class Watcher extends EventEmitter {
     protected client: Redis;
 
     protected subscriberClient : Redis | undefined;
+
+    protected subscribePatterns: string[];
 
     protected options : WatcherOptions;
 
@@ -28,19 +31,30 @@ export class Watcher extends EventEmitter {
 
         this.client = client;
         this.options = options;
+
+        let patterns : string[];
+        if (this.options.pattern) {
+            if (Array.isArray(this.options.pattern)) {
+                patterns = this.options.pattern.map(
+                    (pattern) => `__key*__:${pattern}`,
+                );
+            } else {
+                patterns = [`__key*__:${this.options.pattern}`];
+            }
+        } else {
+            patterns = ['__key*__:*'];
+        }
+
+        this.subscribePatterns = patterns;
     }
 
     //--------------------------------------------------------------------
 
-    override on(event: 'expired', listener: (key: Key) => void) : this;
+    override on(event: `${WatcherEvent}`, listener: (key: Key) => any) : this;
 
-    override on(event: 'started', listener: () => void) : this;
+    override on(event: 'error', listener: (error: Error) => any) : this;
 
-    override on(event: 'stopped', listener: () => void) : this;
-
-    override on(event: 'failed', listener: (message: string, meta: unknown) => string) : this;
-
-    override on(event: string, listener: (...args: any[]) => void) : this {
+    override on(event: string, listener: (...args: any[]) => any) : this {
         return super.on(event, listener);
     }
 
@@ -52,44 +66,38 @@ export class Watcher extends EventEmitter {
 
         const subscriber = this.client.duplicate();
 
-        await subscriber.config('SET', 'notify-keyspace-events', 'Ex');
-        await subscriber.psubscribe('__key*__:*');
+        await subscriber.config('SET', 'notify-keyspace-events', 'KA');
 
-        const handleResult = (input: unknown) => {
-            if (typeof input !== 'string' || input.length === 0) {
-                this.emit('failed', 'Expired key could not be parsed.', input);
+        await subscriber.psubscribe(...this.subscribePatterns);
+
+        subscriber.on('error', (error) => {
+            this.emit('error', error);
+        });
+
+        subscriber.on('pmessage', (_pattern, _channel, event) => {
+            if (this.subscribePatterns.indexOf(_pattern) === -1) {
                 return;
             }
 
-            const result = parseKey(input);
-
-            if (
-                this.options &&
-                this.options.prefix &&
-                this.options.prefix !== result.prefix
-            ) {
+            if (!_channel.startsWith('__keyspace')) {
                 return;
             }
 
-            this.emit('expired', result);
-        };
-
-        subscriber.on('pmessage', (_pattern, _channel, message) => {
-            handleResult(message);
+            const key = _channel.split('__:').pop();
+            if (key && key.length > 0) {
+                this.emit(event, parseKey(key));
+            }
         });
 
         this.subscriberClient = subscriber;
-        this.emit('started');
     }
 
     /* istanbul ignore next */
     async stop() : Promise<void> {
         if (!this.subscriberClient) return;
 
-        await this.subscriberClient.punsubscribe('__key*__:*');
+        await this.subscriberClient.punsubscribe(...this.subscribePatterns);
         this.subscriberClient.disconnect();
         this.subscriberClient = undefined;
-
-        this.emit('stopped');
     }
 }
