@@ -1,3 +1,35 @@
+# [2.0.0](https://github.com/tada5hi/redis-extension/compare/v1.3.0...v2.0.0) (2024-08-04)
+
+
+### Bug Fixes
+
+* **deps:** bump ioredis from 5.3.1 to 5.4.0 ([#243](https://github.com/tada5hi/redis-extension/issues/243)) ([3d41f5f](https://github.com/tada5hi/redis-extension/commit/3d41f5fb0a261b0b8a9b01deab211d2e0f3fafbe))
+* **deps:** bump ioredis from 5.4.0 to 5.4.1 ([#247](https://github.com/tada5hi/redis-extension/issues/247)) ([956f26a](https://github.com/tada5hi/redis-extension/commit/956f26a36976e1314eb4bf2bf9473aecaee058b0))
+* **deps:** bump smob from 1.0.0 to 1.5.0 ([#232](https://github.com/tada5hi/redis-extension/issues/232)) ([841045a](https://github.com/tada5hi/redis-extension/commit/841045a3e057bbfdf21ec2ef00948ab3e3a178ab))
+* do not parse key in watcher + renamed key sub module ([6ee772e](https://github.com/tada5hi/redis-extension/commit/6ee772e0c2611793d29c9ab4bffdc3ac729ca1df))
+
+
+### Features
+
+* add typings for watcher events & support multiple pattern ([#309](https://github.com/tada5hi/redis-extension/issues/309)) ([b3362e0](https://github.com/tada5hi/redis-extension/commit/b3362e015bcf69063f0ce2ee55415e4f8e8ead1f))
+* cleanup score board modul and updated README.md ([9c6d302](https://github.com/tada5hi/redis-extension/commit/9c6d3028d90a9f5a3af8c943d3ab12209537304b))
+* don't use default export for client creation as well ([6d68d1a](https://github.com/tada5hi/redis-extension/commit/6d68d1adc3341138153025218421390bfe4b1c9c))
+* don't use default export for cluster creation ([84d0744](https://github.com/tada5hi/redis-extension/commit/84d0744e6e3c38c83eca3b914abd0132e46882f0))
+* implemented json adapter ([#308](https://github.com/tada5hi/redis-extension/issues/308)) ([d7ebab2](https://github.com/tada5hi/redis-extension/commit/d7ebab2d8ffe1535bd161be6891ea8f0f7a820cd))
+* refactor whole library ([#306](https://github.com/tada5hi/redis-extension/issues/306)) ([e2f8244](https://github.com/tada5hi/redis-extension/commit/e2f824461152821bb6e234130cdf51dcb68642ff))
+
+
+### BREAKING CHANGES
+
+* removed set,get & drop methods from watcher
+* public api changed
+
+* chore: adjusted eslint
+
+* feat: renamed tracker & cache
+
+* chore: reset lock file
+
 # [1.5.0](https://github.com/tada5hi/redis-extension/compare/v1.4.0...v1.5.0) (2024-04-17)
 
 
