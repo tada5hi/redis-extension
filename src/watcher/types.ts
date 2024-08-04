@@ -6,15 +6,14 @@
  */
 
 export type WatcherOptions = {
-    prefix?: string,
-    seconds?: number,
-    milliseconds?: number,
-};
-
-export type WatcherSetOptions = {
-    seconds?: number,
-    milliseconds?: number,
-    ifNotExists?: boolean, // (NX)
-    ifExists?: boolean // (XX)
-    keepTTL?: boolean // (KEEPTTL)
+    /**
+     * Supported glob-style patterns:
+     *
+     * - h?llo subscribes to hello, hallo and hxllo
+     * - h*llo subscribes to hllo and heeeello
+     * - h[ae]llo subscribes to hello and hallo, but not hillo
+     *
+     * @see https://redis.io/docs/latest/commands/psubscribe/
+     */
+    pattern?: string | string[]
 };

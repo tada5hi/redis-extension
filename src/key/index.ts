@@ -6,6 +6,7 @@
  */
 
 export * from './constants';
+export * from './escape';
 export * from './build';
 export * from './parse';
 export * from './types';

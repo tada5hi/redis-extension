@@ -6,7 +6,7 @@
  */
 
 import type { Client } from '../../../src';
-import { Watcher, createClient } from '../../../src';
+import { Watcher, createClient, stringifyKey } from '../../../src';
 
 describe('watcher', () => {
     let client: Client;
@@ -21,7 +21,37 @@ describe('watcher', () => {
         client.disconnect();
     });
 
-    it('should fire expired event', (done) => {
+    it('should watch specific key', (done) => {
+        expect.assertions(3);
+
+        const key = stringifyKey({
+            prefix: 'prefix',
+            id: 'key',
+            suffix: 'suffix',
+        });
+        const watcher = new Watcher(client, {
+            pattern: key,
+        });
+
+        watcher.on('error', (err) => {
+            done(err);
+        });
+        watcher.on('set', (result) => {
+            expect(result.prefix).toEqual('prefix');
+            expect(result.id).toEqual('key');
+            expect(result.suffix).toEqual('suffix');
+
+            watcher.stop();
+
+            done();
+        });
+
+        Promise.resolve()
+            .then(() => watcher.start())
+            .then(() => client.set(key, 'bar', 'PX', 300));
+    });
+
+    it('should watch and fire expired event', (done) => {
         expect.assertions(1);
 
         const watcher = new Watcher(client);
@@ -38,7 +68,7 @@ describe('watcher', () => {
             .then(() => client.set('foo', 'bar', 'PX', 300));
     });
 
-    it('should fire del event', (done) => {
+    it('should watch fire del event', (done) => {
         expect.assertions(1);
 
         const watcher = new Watcher(client);

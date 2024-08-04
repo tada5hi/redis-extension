@@ -17,7 +17,7 @@ export class Watcher extends EventEmitter {
 
     protected subscriberClient : Redis | undefined;
 
-    protected subscribePattern: string;
+    protected subscribePatterns: string[];
 
     protected options : WatcherOptions;
 
@@ -32,14 +32,20 @@ export class Watcher extends EventEmitter {
         this.client = client;
         this.options = options;
 
-        let pattern : string;
-        if (this.options.prefix) {
-            pattern = `__key*__:${this.options.prefix.replace(/([*?[\]\\])/g, '\\$1')}*`;
+        let patterns : string[];
+        if (this.options.pattern) {
+            if (Array.isArray(this.options.pattern)) {
+                patterns = this.options.pattern.map(
+                    (pattern) => `__key*__:${pattern}`,
+                );
+            } else {
+                patterns = [`__key*__:${this.options.pattern}`];
+            }
         } else {
-            pattern = '__key*__:*';
+            patterns = ['__key*__:*'];
         }
 
-        this.subscribePattern = pattern;
+        this.subscribePatterns = patterns;
     }
 
     //--------------------------------------------------------------------
@@ -62,20 +68,14 @@ export class Watcher extends EventEmitter {
 
         await subscriber.config('SET', 'notify-keyspace-events', 'KA');
 
-        await subscriber.psubscribe(this.subscribePattern);
-
-        const handleMessage = (key: string, event: string) => {
-            const result = parseKey(key);
-
-            this.emit(event, result);
-        };
+        await subscriber.psubscribe(...this.subscribePatterns);
 
         subscriber.on('error', (error) => {
             this.emit('error', error);
         });
 
         subscriber.on('pmessage', (_pattern, _channel, event) => {
-            if (_pattern !== this.subscribePattern) {
+            if (this.subscribePatterns.indexOf(_pattern) === -1) {
                 return;
             }
 
@@ -85,7 +85,7 @@ export class Watcher extends EventEmitter {
 
             const key = _channel.split('__:').pop();
             if (key && key.length > 0) {
-                handleMessage(key, event);
+                this.emit(event, parseKey(key));
             }
         });
 
@@ -96,7 +96,7 @@ export class Watcher extends EventEmitter {
     async stop() : Promise<void> {
         if (!this.subscriberClient) return;
 
-        await this.subscriberClient.punsubscribe(this.subscribePattern);
+        await this.subscriberClient.punsubscribe(...this.subscribePatterns);
         this.subscriberClient.disconnect();
         this.subscriberClient = undefined;
     }
