@@ -44,6 +44,8 @@ export class JsonAdapter {
             } else {
                 await this.client.set(key, JSON.stringify(value), 'PX', milliseconds);
             }
+
+            return;
         }
 
         await this.client.set(key, JSON.stringify(value));
