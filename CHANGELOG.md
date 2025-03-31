@@ -1,3 +1,11 @@
+## [2.0.2](https://github.com/tada5hi/redis-extension/compare/v2.0.1...v2.0.2) (2025-03-31)
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group with 12 updates ([#436](https://github.com/tada5hi/redis-extension/issues/436)) ([90d42aa](https://github.com/tada5hi/redis-extension/commit/90d42aa7fe981a23533305e19614915bd2ed3e21))
+* **deps:** remove unused node-schedule dependency ([1248497](https://github.com/tada5hi/redis-extension/commit/1248497afbfed56720f17c433a8a6f385e9734a4))
+
 ## [2.0.1](https://github.com/tada5hi/redis-extension/compare/v2.0.0...v2.0.1) (2024-10-30)
 
 
