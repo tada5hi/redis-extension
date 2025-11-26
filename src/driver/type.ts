@@ -7,22 +7,22 @@
 
 import type {
     RedisOptions as ClientOptions,
+    ClusterNode,
     ClusterOptions,
 } from 'ioredis';
 
 import {
     Redis as Client,
     Cluster,
-    ClusterNode,
 } from 'ioredis';
 
 export type {
     ClientOptions,
     ClusterOptions,
+    ClusterNode,
 };
 
 export {
     Client,
     Cluster,
-    ClusterNode,
 };
