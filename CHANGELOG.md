@@ -6,6 +6,14 @@
 * **deps:** bump the minorandpatch group with 12 updates ([#436](https://github.com/tada5hi/redis-extension/issues/436)) ([90d42aa](https://github.com/tada5hi/redis-extension/commit/90d42aa7fe981a23533305e19614915bd2ed3e21))
 * **deps:** remove unused node-schedule dependency ([1248497](https://github.com/tada5hi/redis-extension/commit/1248497afbfed56720f17c433a8a6f385e9734a4))
 
+## [2.0.3](https://github.com/tada5hi/redis-extension/compare/v2.0.2...v2.0.3) (2025-11-26)
+
+
+### Bug Fixes
+
+* **deps:** bump the minorandpatch group across 1 directory with 8 updates ([#468](https://github.com/tada5hi/redis-extension/issues/468)) ([332f6a3](https://github.com/tada5hi/redis-extension/commit/332f6a317e14a8f76205871364ff1426576a3b0b))
+* re-exports of driver library ([fef59c4](https://github.com/tada5hi/redis-extension/commit/fef59c47e2e555dc2924fd8c6516b21a6bfcf759))
+
 ## [2.0.1](https://github.com/tada5hi/redis-extension/compare/v2.0.0...v2.0.1) (2024-10-30)
 
 
