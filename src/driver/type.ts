@@ -5,10 +5,24 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export {
+import type {
+    RedisOptions as ClientOptions,
+    ClusterOptions,
+} from 'ioredis';
+
+import {
     Redis as Client,
     Cluster,
     ClusterNode,
-    ClusterOptions,
-    RedisOptions as ClientOptions,
 } from 'ioredis';
+
+export type {
+    ClientOptions,
+    ClusterOptions,
+};
+
+export {
+    Client,
+    Cluster,
+    ClusterNode,
+};
