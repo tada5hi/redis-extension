@@ -13,6 +13,13 @@
 
 * declare cluster-node as type reexport ([9b4043d](https://github.com/tada5hi/redis-extension/commit/9b4043d6f9cede00c4b7b04dedea8561c9420cf4))
 
+## [2.0.4](https://github.com/tada5hi/redis-extension/compare/v2.0.3...v2.0.4) (2025-11-26)
+
+
+### Bug Fixes
+
+* declare cluster-node as type reexport ([9b4043d](https://github.com/tada5hi/redis-extension/commit/9b4043d6f9cede00c4b7b04dedea8561c9420cf4))
+
 ## [2.0.3](https://github.com/tada5hi/redis-extension/compare/v2.0.2...v2.0.3) (2025-11-26)
 
 
