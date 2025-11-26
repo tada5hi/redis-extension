@@ -6,6 +6,13 @@
 * **deps:** bump the minorandpatch group with 12 updates ([#436](https://github.com/tada5hi/redis-extension/issues/436)) ([90d42aa](https://github.com/tada5hi/redis-extension/commit/90d42aa7fe981a23533305e19614915bd2ed3e21))
 * **deps:** remove unused node-schedule dependency ([1248497](https://github.com/tada5hi/redis-extension/commit/1248497afbfed56720f17c433a8a6f385e9734a4))
 
+## [2.0.4](https://github.com/tada5hi/redis-extension/compare/v2.0.3...v2.0.4) (2025-11-26)
+
+
+### Bug Fixes
+
+* declare cluster-node as type reexport ([9b4043d](https://github.com/tada5hi/redis-extension/commit/9b4043d6f9cede00c4b7b04dedea8561c9420cf4))
+
 ## [2.0.3](https://github.com/tada5hi/redis-extension/compare/v2.0.2...v2.0.3) (2025-11-26)
 
 
