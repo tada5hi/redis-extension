@@ -62,7 +62,7 @@
         "ioredis-mock": "^8.13.1",
         "jest": "^30.2.0",
         "rollup": "^4.53.3",
-        "testcontainers": "^11.8.1",
+        "testcontainers": "^11.9.0",
         "ts-jest": "^29.4.5",
         "typescript": "^5.9.3",
         "workspaces-publish": "^1.5.0"
