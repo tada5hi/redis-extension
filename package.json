@@ -68,7 +68,7 @@
         "workspaces-publish": "^1.7.0"
     },
     "dependencies": {
-        "ioredis": "^5.9.2",
+        "ioredis": "^6.0.0",
         "smob": "^1.6.1"
     }
 }
