@@ -6,6 +6,9 @@
         ],
         "module": "NodeNext",
         "outDir": "dist",
+        "verbatimModuleSyntax": false,
+        "noUncheckedIndexedAccess": false,
+        "noPropertyAccessFromIndexSignature": false,
         "target": "ES2020"
     },
     "include": [
