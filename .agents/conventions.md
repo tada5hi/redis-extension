@@ -1,6 +1,6 @@
 # Conventions
 
-Use the installed shared ESLint configuration through the repository's lint command. Keep interface/type naming and declaration placement compatible with public exports; preserve intentional deep import facades.
+Use the installed shared ESLint configuration through the repository's lint command. Keep interface/type naming and declaration placement compatible with public exports; qualify filesystem/deep type compatibility against the declared exports map.
 
 Tests start a disposable Redis container through `test/setup.js`; Docker access is required. Preserve key construction, connection configuration and watcher cleanup.
 

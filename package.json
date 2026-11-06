@@ -68,5 +68,12 @@
     "dependencies": {
         "ioredis": "^5.9.2",
         "smob": "^1.6.1"
+    },
+    "devEngines": {
+        "runtime": {
+            "name": "node",
+            "version": "^24.15.0 || >=26.0.0",
+            "onFail": "warn"
+        }
     }
 }
