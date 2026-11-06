@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { ClientOptions, ClusterNode, ClusterOptions } from '../driver/type';
+import type { ClientOptions, ClusterNode, ClusterOptions } from '../driver/types';
 
 export type Config = {
     options: ClientOptions,

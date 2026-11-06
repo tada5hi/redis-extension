@@ -7,4 +7,4 @@
 
 export * from './client';
 export * from './cluster';
-export * from './type';
+export * from './types';

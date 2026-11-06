@@ -4,9 +4,10 @@
         "lib": [
             "ESNext"
         ],
-        "module": "NodeNext",
+        "module": "ESNext",
         "outDir": "dist",
-        "target": "ES2020"
+        "target": "ES2020",
+        "moduleResolution": "Bundler"
     },
     "include": [
         "src/**/*.ts"

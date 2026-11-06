@@ -1,93 +1,62 @@
-/*
- * Copyright (c) 2021.
- * Author Peter Placzek (tada5hi)
- * For the full copyright and license information,
- * view the LICENSE file that was distributed with this source code.
- */
-
+import { once } from 'node:events';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import type { Client } from '../../../src';
 import { Watcher, buildKeyPath, createClient } from '../../../src';
 
 describe('watcher', () => {
     let client: Client;
 
-    beforeAll(async () => {
-        client = createClient({
-            connectionString: process.env.REDIS_CONNECTION_STRING,
-        });
+    beforeAll(() => {
+        client = createClient({ connectionString: process.env.REDIS_CONNECTION_STRING });
     });
 
-    afterAll(async () => {
+    afterAll(() => {
         client.disconnect();
     });
 
-    it('should watch specific key', (done) => {
-        expect.assertions(1);
+    it('should watch specific key', async () => {
+        const keyPath = buildKeyPath({ prefix: 'prefix', key: 'key', suffix: 'suffix' });
+        const watcher = new Watcher(client, { pattern: keyPath });
 
-        const keyPath = buildKeyPath({
-            prefix: 'prefix',
-            key: 'key',
-            suffix: 'suffix',
-        });
-        const watcher = new Watcher(client, {
-            pattern: keyPath,
-        });
-
-        watcher.on('error', (err) => {
-            done(err);
-        });
-        watcher.on('set', (key) => {
+        try {
+            await watcher.start();
+            const event = once(watcher, 'set');
+            await client.set(keyPath, 'bar', 'PX', 300);
+            const [key] = await event;
             expect(key).toEqual(keyPath);
-
-            watcher.stop();
-
-            done();
-        });
-
-        Promise.resolve()
-            .then(() => watcher.start())
-            .then(() => client.set(keyPath, 'bar', 'PX', 300));
+        } finally {
+            await watcher.stop();
+        }
     });
 
-    it('should watch and fire set & expire event', (done) => {
-        expect.assertions(2);
+    it('should watch and fire set & expire event', async () => {
+        const watcher = new Watcher(client, { pattern: 'foo' });
 
-        const watcher = new Watcher(client);
-        watcher.on('set', (key) => {
-            expect(key).toEqual('foo');
-        });
-        watcher.on('expire', (key) => {
-            expect(key).toEqual('foo');
-
-            watcher.stop();
-
-            done();
-        });
-
-        Promise.resolve()
-            .then(() => watcher.start())
-            .then(() => client.set('foo', 'bar', 'PX', 300));
+        try {
+            await watcher.start();
+            const events = Promise.all([once(watcher, 'set'), once(watcher, 'expired')]);
+            await client.set('foo', 'bar', 'PX', 300);
+            const [[setKey], [expiredKey]] = await events;
+            expect(setKey).toEqual('foo');
+            expect(expiredKey).toEqual('foo');
+        } finally {
+            await watcher.stop();
+        }
     });
 
-    it('should watch fire set & del event', (done) => {
-        expect.assertions(2);
+    it('should watch fire set & del event', async () => {
+        const watcher = new Watcher(client, { pattern: 'foo' });
 
-        const watcher = new Watcher(client);
-        watcher.on('set', (key) => {
-            expect(key).toEqual('foo');
-        });
-
-        watcher.on('del', (key) => {
-            expect(key).toEqual('foo');
-
-            watcher.stop();
-
-            done();
-        });
-
-        Promise.resolve()
-            .then(() => watcher.start())
-            .then(() => client.set('foo', 'bar'))
-            .then(() => client.del('foo'));
+        try {
+            await watcher.start();
+            const events = Promise.all([once(watcher, 'set'), once(watcher, 'del')]);
+            await client.set('foo', 'bar');
+            await client.del('foo');
+            const [[setKey], [deletedKey]] = await events;
+            expect(setKey).toEqual('foo');
+            expect(deletedKey).toEqual('foo');
+        } finally {
+            await watcher.stop();
+        }
     });
 });

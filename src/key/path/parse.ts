@@ -17,12 +17,14 @@ export function parseKeyPath(
     let suffix : string | undefined;
 
     const prefixSeparatorIndex = keyPath.indexOf(KeyPathSeparator.PREFIX);
+
     if (prefixSeparatorIndex !== -1) {
         prefix = keyPath.substring(0, prefixSeparatorIndex);
         keyPath = keyPath.substring(prefixSeparatorIndex + KeyPathSeparator.PREFIX.length);
     }
 
     const suffixSeparatorIndex = keyPath.lastIndexOf(KeyPathSeparator.SUFFIX);
+
     if (suffixSeparatorIndex !== -1) {
         suffix = keyPath.substring(suffixSeparatorIndex + KeyPathSeparator.SUFFIX.length);
         keyPath = keyPath.substring(0, suffixSeparatorIndex);

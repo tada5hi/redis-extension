@@ -17,6 +17,7 @@ export class JsonAdapter {
 
     async set(key: string, value: any, options: JSONAdapterSetOptions = {}) {
         let milliseconds : number | undefined;
+
         if (options.milliseconds) {
             milliseconds = options.milliseconds;
         } else if (options.seconds) {
@@ -54,12 +55,13 @@ export class JsonAdapter {
     async get<T = any>(key: string) : Promise<undefined | T> {
         try {
             const entry = await this.client.get(key);
+
             if (entry === null || typeof entry === 'undefined') {
                 return undefined;
             }
 
             return JSON.parse(entry) as T;
-        } catch (e) {
+        } catch {
             /* istanbul ignore next */
             return undefined;
         }

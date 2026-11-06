@@ -10,6 +10,7 @@ import type { KeyPath } from './types';
 
 export function buildKeyPath(options: KeyPath) : string {
     const parts = [];
+
     if (options.prefix) {
         parts.push(options.prefix);
         parts.push(KeyPathSeparator.PREFIX);
