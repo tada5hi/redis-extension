@@ -1,5 +1,5 @@
 import { once } from 'node:events';
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from '../../../src';
 import { Watcher, buildKeyPath, createClient } from '../../../src';
 
