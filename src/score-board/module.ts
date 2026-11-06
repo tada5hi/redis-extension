@@ -7,9 +7,11 @@
 
 import type { Client } from '../driver';
 import type {
-    ScoreBoardGetOptions, ScoreBoardGetOutput,
+    ScoreBoardGetOptions,
+    ScoreBoardGetOutput,
     ScoreBoardItem,
-    ScoreBoardOptions, ScoreBoardOptionsInput,
+    ScoreBoardOptions,
+    ScoreBoardOptionsInput,
 } from './types';
 
 export class ScoreBoard {
@@ -50,6 +52,7 @@ export class ScoreBoard {
             }
         } else {
             options.offset ??= 0;
+
             if (options.sort === 'DESC') {
                 data = await this.client.zrevrangebyscore(
                     this.options.key,
@@ -77,8 +80,8 @@ export class ScoreBoard {
 
         for (let i = 0; i < data.length; i += 2) {
             items.push({
-                id: data[i],
-                score: parseInt(data[i + 1], 10),
+                id: data[i]!,
+                score: parseInt(data[i + 1]!, 10),
             });
         }
 

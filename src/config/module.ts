@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Config, ConfigInput } from './type';
+import type { Config, ConfigInput } from './types';
 import { buildConfig, buildConfigWithDefaults } from './utils';
 
 const getAlias = (alias?: string) => alias || 'default';
@@ -33,7 +33,7 @@ export function useConfig(
     alias = getAlias(alias);
 
     if (Object.prototype.hasOwnProperty.call(instances, alias)) {
-        return instances[alias];
+        return instances[alias]!;
     }
 
     return buildConfigWithDefaults();

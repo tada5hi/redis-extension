@@ -8,7 +8,7 @@
 import { Redis } from 'ioredis';
 import type { ConfigInput } from '../config';
 import { useConfig } from '../config';
-import type { Client } from './type';
+import type { Client } from './types';
 
 const getAlias = (key?: string) => key || 'default';
 
@@ -18,23 +18,26 @@ export function useClient(alias?: string) : Client {
     alias = getAlias(alias);
 
     if (Object.prototype.hasOwnProperty.call(instances, alias)) {
-        return instances[alias];
+        return instances[alias]!;
     }
 
     const config = useConfig(alias);
+
     instances[alias] = createClient(config);
 
-    return instances[alias];
+    return instances[alias]!;
 }
 
 export function unsetClient(alias?: string) {
     alias = getAlias(alias);
 
-    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
-        instances[alias].disconnect();
-
-        delete instances[alias];
+    if (!Object.prototype.hasOwnProperty.call(instances, alias)) {
+        return;
     }
+
+    instances[alias]!.disconnect();
+
+    delete instances[alias];
 }
 
 export function hasClient(alias?: string) {
@@ -48,7 +51,7 @@ export function setClient(value: Client, alias?: string) : Client {
 
     instances[alias] = value;
 
-    return instances[alias];
+    return instances[alias]!;
 }
 
 export function createClient(config?: ConfigInput) : Client {

@@ -31,6 +31,7 @@ export class Watcher extends EventEmitter {
         this.options = options;
 
         let patterns : string[];
+
         if (this.options.pattern) {
             if (Array.isArray(this.options.pattern)) {
                 patterns = this.options.pattern.map(
@@ -73,15 +74,12 @@ export class Watcher extends EventEmitter {
         });
 
         subscriber.on('pmessage', (_pattern, _channel, event) => {
-            if (this.subscribePatterns.indexOf(_pattern) === -1) {
-                return;
-            }
-
-            if (!_channel.startsWith('__keyspace')) {
+            if ((!this.subscribePatterns.includes(_pattern)) || !_channel.startsWith('__keyspace')) {
                 return;
             }
 
             const key = _channel.split('__:').pop();
+
             if (key && key.length > 0) {
                 this.emit(event, key);
             }
@@ -92,7 +90,9 @@ export class Watcher extends EventEmitter {
 
     /* istanbul ignore next */
     async stop() : Promise<void> {
-        if (!this.subscriberClient) return;
+        if (!this.subscriberClient) {
+            return;
+        }
 
         await this.subscriberClient.punsubscribe(...this.subscribePatterns);
         this.subscriberClient.disconnect();
