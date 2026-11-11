@@ -39,7 +39,7 @@ redis-extension writes those patterns once, on top of the ioredis client you alr
 | Concern | With ioredis alone | With redis-extension |
 |---|---|---|
 | **React to key changes** | Set `notify-keyspace-events`, `duplicate()` a connection (a subscribed connection cannot run commands), `PSUBSCRIBE` the right channels, strip `__keyspace@0__:` from each channel name | `new Watcher(client, { pattern: 'user:*' })`, then `watcher.on('del', key => …)` |
-| **Store objects** | `JSON.stringify` on write, `JSON.parse` in a `try`/`catch` on read, and the `SET` argument order for `PX`, `NX`, `XX` and `KEEPTTL` | `JsonAdapter.set(key, value, { seconds: 60, ifNotExists: true })`; `get()` resolves `undefined` for a missing or unparsable value |
+| **Store objects** | `JSON.stringify` on write, `JSON.parse` in a `try`/`catch` on read, the `SET` argument order for `PX`, `NX`, `XX` and `KEEPTTL`, and a read-compute-write for caching | `JsonAdapter.set(key, value, { seconds: 60, ifNotExists: true })`; `get()` resolves `undefined` for a missing or unparsable value; `getOrSet(key, factory)` caches |
 | **Rank members by score** | `ZADD`, then `ZREVRANGEBYSCORE … WITHSCORES LIMIT`, pair up the flat reply, a separate `ZCARD` for the total, and `ZREMRANGEBYSCORE` to expire old members | `ScoreBoard.add(id)`, `get({ limit: 10 })` returns `{ data: [{ id, score }], meta: { total } }`, and `prune(below)` drops stale members |
 | **Single node or cluster** | Helpers written against `Redis`, or a second code path for `Cluster` | `JsonAdapter` and `ScoreBoard` take either; `createClient()` adds reconnect defaults |
 | **Compound keys** | String concatenation, and a parser that has to agree with it | `buildKeyPath({ prefix, key, suffix })` and `parseKeyPath()`; `escapeKey()` for glob patterns |
@@ -202,21 +202,61 @@ import { JsonAdapter, createClient } from 'redis-extension';
 
 type User = { name: string, roles: string[] };
 
-const adapter = new JsonAdapter(createClient());
+const adapter = new JsonAdapter<User>(createClient());
 
 await adapter.set('user:51f3509d', { name: 'admin', roles: ['owner'] }, {
     seconds: 3600,
 });
 
-const user = await adapter.get<User>('user:51f3509d');
+const user = await adapter.get('user:51f3509d');
 // { name: 'admin', roles: ['owner'] }
 
 await adapter.drop('user:51f3509d'); // true
 ```
 
-- `set(key, value, options?)` writes `JSON.stringify(value)` with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write. The [set options](#jsonadapter-set-options) map to `PX`, `XX`, `NX` and `KEEPTTL`.
-- `get<T>(key)` resolves the parsed value, or `undefined` when the key does not exist or its value is not valid JSON. It rejects when the command fails, for example on a connection error or a key of another type. `T` is not checked at runtime.
+- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value `stringify` turns into no string, such as `undefined` or a function under `JSON.stringify`. The [set options](#jsonadapter-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
+- `get(key)` resolves the value as the adapter's type `T`, or `undefined` when the key does not exist or `parse` throws or rejects for its value. It rejects when the command fails, for example on a connection error or a key of another type.
+- `getMany(keys)` resolves the values in the order of the keys, with `undefined` where `get()` would resolve `undefined`, and rejects where `get()` rejects, such as for a key of another type. It sends one `GET` per key, all at once, so the keys can live on different cluster nodes.
+- `setMany(entries, options?)` writes a record or a list of `[key, value]` pairs concurrently with the same options and resolves one `set()` result per entry. The writes are not atomic.
+- `getOrSet(key, factory, options?)` resolves the stored value, or calls `factory`, stores its result with `options` and resolves it.
 - `drop(key)` deletes the key and resolves `true` when a key was removed.
+
+Cache a computed value, and check what comes back with `parse`. The type parameter alone is not checked at runtime:
+
+```typescript
+import { JsonAdapter, createClient } from 'redis-extension';
+
+type Report = { total: number };
+declare function buildReport(): Promise<Report>;
+
+const reports = new JsonAdapter<Report>(createClient(), {
+    parse: (text) => {
+        const value = JSON.parse(text);
+
+        if (typeof value?.total !== 'number') {
+            throw new TypeError('not a report');
+        }
+
+        return value;
+    },
+});
+
+const report = await reports.getOrSet('report:today', () => buildReport(), {
+    seconds: 300,
+});
+```
+
+A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value. With `ifNotExists`, an unreadable value is still replaced, unless another caller stored a readable one first.
+
+Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass your own `stringify`, `parse` or both to keep them. Either may return a Promise, for example to decrypt or to run an async schema check:
+
+```typescript
+import { JsonAdapter, createClient } from 'redis-extension';
+
+const events = new JsonAdapter<{ at: Date }>(createClient(), {
+    parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
+});
+```
 
 ### ScoreBoard
 
@@ -309,6 +349,13 @@ escapeKey('report[2024]*');
 | `pattern` | `string \| string[]` | every key | Glob pattern(s) for the keys to watch, as in [`PSUBSCRIBE`](https://redis.io/docs/latest/commands/psubscribe/) |
 | `notifyKeyspaceEvents` | `string \| false` | `'KA'` | Written to the server's `notify-keyspace-events` setting by `start()`. It must contain `K` (keyspace channels) and the event classes to watch, such as `Kg$x`; without `K`, no event is emitted. `false` leaves the server setting alone, which then needs the same flags |
 
+### JsonAdapter options
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `stringify` | `(value: T) => string \| Promise<string>` | `JSON.stringify` | Turns a value into the stored text; a result that is no string makes `set()` reject with a `TypeError` |
+| `parse` | `(text: string) => T \| Promise<T>` | `JSON.parse` | Turns the stored text into a value, e.g. to validate it or revive `Date` values; a throw or rejection reads as `undefined` |
+
 ### JsonAdapter set options
 
 | Option | Type | Default | Redis | Description |
@@ -342,13 +389,13 @@ escapeKey('report[2024]*');
 | `Client`, `Cluster` | class | The ioredis `Redis` and `Cluster` classes |
 | `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys |
 | `WatcherEvent` | enum | Event names a `Watcher` emits, such as `SET = 'set'` and `EXPIRED = 'expired'` |
-| `JsonAdapter` | class | `set`, `get` and `drop` of JSON values, on a client or a cluster |
+| `JsonAdapter` | class | `get`, `set`, `getMany`, `setMany`, `getOrSet` and `drop` of JSON values, on a client or a cluster |
 | `ScoreBoard` | class | `add`, `get`, `score`, `rank`, `increment`, `prune`, `drop` and `clear` on a sorted set, on a client or a cluster |
 | `buildKeyPath`, `parseKeyPath` | function | Join and split `prefix#p#key#s#suffix` |
 | `escapeKey` | function | Escape glob characters in a key |
 | `KeyPathSeparator` | enum | `PREFIX = '#p#'`, `SUFFIX = '#s#'` |
 | `ClientInput`, `ClusterInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
-| `WatcherOptions`, `JSONAdapterSetOptions`, `KeyPath` | type | Options and values of the helpers above |
+| `WatcherOptions`, `JSONAdapterOptions`, `JSONAdapterSetOptions`, `KeyPath` | type | Options and values of the helpers above |
 | `ScoreBoardOptions`, `ScoreBoardOptionsInput`, `ScoreBoardGetOptions`, `ScoreBoardGetOutput`, `ScoreBoardItem` | type | ScoreBoard options and results |
 
 ## Notes

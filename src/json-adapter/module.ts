@@ -6,22 +6,158 @@
  */
 
 import type { Client, Cluster } from '../driver';
-import type { JSONAdapterSetOptions } from './types';
+import type { JSONAdapterOptions, JSONAdapterSetOptions } from './types';
 
-export class JsonAdapter {
+/**
+ * SET the value (ARGV[2]) with the SET arguments (ARGV[3..]), only while the
+ * key still holds the unreadable value (ARGV[1]).
+ */
+const REPLACE_SCRIPT = `if redis.call('GET', KEYS[1]) == ARGV[1] then
+    return redis.call('SET', KEYS[1], ARGV[2], unpack(ARGV, 3))
+end
+return false`;
+
+export class JsonAdapter<T = any> {
     protected client : Client | Cluster;
 
-    constructor(client: Client | Cluster) {
+    protected stringify : (value: T) => string | Promise<string>;
+
+    protected parse : (text: string) => T | Promise<T>;
+
+    constructor(client: Client | Cluster, options: JSONAdapterOptions<T> = {}) {
         this.client = client;
+        this.stringify = options.stringify || JSON.stringify;
+        this.parse = options.parse || JSON.parse;
     }
 
     /**
-     * Write the value as JSON.
+     * Write the serialized value.
      *
      * @returns true when the value was written, false when ifExists or ifNotExists skipped the write.
      */
-    async set(key: string, value: any, options: JSONAdapterSetOptions = {}) : Promise<boolean> {
-        const data = JSON.stringify(value);
+    async set(key: string, value: T, options: JSONAdapterSetOptions = {}) : Promise<boolean> {
+        const data = await this.serialize(key, value);
+
+        return await this.client.call('SET', key, data, ...this.setArguments(options)) === 'OK';
+    }
+
+    /**
+     * Read a value.
+     *
+     * @returns the value, or undefined when the key does not exist, its value
+     * cannot be parsed, or parse rejects it.
+     */
+    async get(key: string) : Promise<undefined | T> {
+        return this.read(await this.client.get(key));
+    }
+
+    /**
+     * Read several values with one GET per key, sent together. Unlike MGET,
+     * GET rejects a key of another type, as get() does, and works on a
+     * cluster, whose keys can live on different nodes.
+     *
+     * @returns the values in the order of the keys, undefined where get() would resolve undefined.
+     */
+    async getMany(keys: string[]) : Promise<(T | undefined)[]> {
+        if (keys.length === 0) {
+            return [];
+        }
+
+        const entries = await Promise.all(keys.map((key) => this.client.get(key)));
+
+        return Promise.all(entries.map((entry) => this.read(entry)));
+    }
+
+    /**
+     * Write several values concurrently, each with the same options. The
+     * writes are not atomic.
+     *
+     * @returns one set() result per entry, in order.
+     */
+    async setMany(
+        entries: Record<string, T> | [string, T][],
+        options: JSONAdapterSetOptions = {},
+    ) : Promise<boolean[]> {
+        const list = Array.isArray(entries) ? entries : Object.entries(entries);
+
+        return Promise.all(list.map(([key, value]) => this.set(key, value, options)));
+    }
+
+    /**
+     * Read a value, or compute, store and return it when it is missing.
+     * Concurrent callers can each run the factory; with ifNotExists, the
+     * first write wins and every caller resolves the stored value.
+     */
+    async getOrSet(
+        key: string,
+        factory: () => T | Promise<T>,
+        options: JSONAdapterSetOptions = {},
+    ) : Promise<T> {
+        const current = await this.get(key);
+
+        if (typeof current !== 'undefined') {
+            return current;
+        }
+
+        const value = await factory();
+        const data = await this.serialize(key, value);
+
+        if (await this.client.call('SET', key, data, ...this.setArguments(options)) === 'OK') {
+            return value;
+        }
+
+        // ifExists or ifNotExists skipped the write: resolve what is stored
+        const entry = await this.client.get(key);
+        const stored = await this.read(entry);
+
+        if (typeof stored !== 'undefined') {
+            return stored;
+        }
+
+        if (entry !== null && options.ifNotExists) {
+            // an unreadable value blocks NX forever; replace it, unless a
+            // concurrent caller replaced it first
+            const replaced = await this.client.eval(
+                REPLACE_SCRIPT,
+                1,
+                key,
+                entry,
+                data,
+                ...this.setArguments({ ...options, ifNotExists: false }),
+            );
+
+            if (replaced !== 'OK') {
+                const latest = await this.get(key);
+
+                if (typeof latest !== 'undefined') {
+                    return latest;
+                }
+            }
+        }
+
+        return value;
+    }
+
+    async drop(key: string) : Promise<boolean> {
+        return await this.client.del(key) === 1;
+    }
+
+    protected async serialize(key: string, value: T) : Promise<string> {
+        // JSON.stringify returns undefined for undefined, functions and symbols
+        const data : unknown = await this.stringify(value);
+
+        if (typeof data !== 'string') {
+            throw new TypeError(`The value for the key ${key} cannot be serialized.`);
+        }
+
+        return data;
+    }
+
+    /**
+     * The SET arguments after key and value.
+     */
+    protected setArguments(options: JSONAdapterSetOptions) : (string | number)[] {
+        const output : (string | number)[] = [];
 
         let milliseconds : number | undefined;
 
@@ -31,50 +167,31 @@ export class JsonAdapter {
             milliseconds = options.seconds * 1000;
         }
 
-        let result : string | null;
-
         if (options.keepTTL) {
-            if (options.ifExists) {
-                result = await this.client.set(key, data, 'KEEPTTL', 'XX');
-            } else if (options.ifNotExists) {
-                result = await this.client.set(key, data, 'KEEPTTL', 'NX');
-            } else {
-                result = await this.client.set(key, data, 'KEEPTTL');
-            }
+            output.push('KEEPTTL');
         } else if (milliseconds) {
-            if (options.ifExists) {
-                result = await this.client.set(key, data, 'PX', milliseconds, 'XX');
-            } else if (options.ifNotExists) {
-                result = await this.client.set(key, data, 'PX', milliseconds, 'NX');
-            } else {
-                result = await this.client.set(key, data, 'PX', milliseconds);
-            }
-        } else if (options.ifExists) {
-            result = await this.client.set(key, data, 'XX');
-        } else if (options.ifNotExists) {
-            result = await this.client.set(key, data, 'NX');
-        } else {
-            result = await this.client.set(key, data);
+            // PX takes a positive integer
+            output.push('PX', Math.max(1, Math.round(milliseconds)));
         }
 
-        return result === 'OK';
+        if (options.ifExists) {
+            output.push('XX');
+        } else if (options.ifNotExists) {
+            output.push('NX');
+        }
+
+        return output;
     }
 
-    async get<T = any>(key: string) : Promise<undefined | T> {
-        const entry = await this.client.get(key);
-
+    protected async read(entry: string | null) : Promise<T | undefined> {
         if (entry === null) {
             return undefined;
         }
 
         try {
-            return JSON.parse(entry) as T;
+            return await this.parse(entry);
         } catch {
             return undefined;
         }
-    }
-
-    async drop(key: string) : Promise<boolean> {
-        return await this.client.del(key) === 1;
     }
 }
