@@ -11,9 +11,9 @@ export type SubscriberListener = {
 };
 
 /**
- * A pattern subscription shared by every watcher of one Redis connection.
- * add() and remove() run one after another, so overlapping starts and stops
- * cannot leak or lose the subscription.
+ * The pattern subscription of one Redis connection. add() and remove() run
+ * one after another, so overlapping starts and stops cannot leak or lose the
+ * subscription.
  */
 export interface ISubscriber {
     /**

@@ -8,12 +8,9 @@
 import type { Redis } from 'ioredis';
 import type { ISubscriber, SubscriberListener } from './types';
 
-const subscribers = new WeakMap<Redis, Subscriber>();
-
 /**
- * One pattern-subscribed duplicate connection per Redis connection, shared
- * by every watcher of that connection. Patterns are counted per listener,
- * and operations run through one queue.
+ * One pattern-subscribed duplicate connection for a Redis connection.
+ * Patterns are counted per listener, and operations run through one queue.
  */
 export class Subscriber implements ISubscriber {
     protected client: Redis;
@@ -24,19 +21,8 @@ export class Subscriber implements ISubscriber {
 
     protected queue : Promise<unknown> = Promise.resolve();
 
-    protected constructor(client: Redis) {
+    constructor(client: Redis) {
         this.client = client;
-    }
-
-    static for(client: Redis) : ISubscriber {
-        let subscriber = subscribers.get(client);
-
-        if (!subscriber) {
-            subscriber = new Subscriber(client);
-            subscribers.set(client, subscriber);
-        }
-
-        return subscriber;
     }
 
     add(
@@ -160,8 +146,7 @@ export class Subscriber implements ISubscriber {
     }
 
     /**
-     * Close the connection. The subscriber stays registered for its client,
-     * so a queued or later add() reconnects the same instance.
+     * Close the connection. A queued or later add() reconnects it.
      */
     protected disconnect() {
         if (!this.connection) {

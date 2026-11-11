@@ -37,6 +37,13 @@ export class Watcher extends EventEmitter {
 
     protected options : WatcherOptions;
 
+    /**
+     * The subscriber of each connection the watcher subscribes on, kept
+     * across restarts, so a stop and a restart that overlap use the same
+     * connection.
+     */
+    protected subscribers = new WeakMap<Redis, ISubscriber>();
+
     //--------------------------------------------------------------------
 
     constructor(
@@ -150,7 +157,7 @@ export class Watcher extends EventEmitter {
 
         try {
             for (const node of await this.nodes()) {
-                const subscriber = Subscriber.for(node);
+                const subscriber = this.subscriber(node);
 
                 await subscriber.add(this.subscribePatterns, listener, notifyKeyspaceEvents);
                 subscribers.push(subscriber);
@@ -164,6 +171,17 @@ export class Watcher extends EventEmitter {
         }
 
         return { subscribers, listener };
+    }
+
+    protected subscriber(node: Redis) : ISubscriber {
+        let subscriber = this.subscribers.get(node);
+
+        if (!subscriber) {
+            subscriber = new Subscriber(node);
+            this.subscribers.set(node, subscriber);
+        }
+
+        return subscriber;
     }
 
     /**

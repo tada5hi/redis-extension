@@ -290,7 +290,7 @@ describe('watcher', () => {
         }
     });
 
-    it('should share one subscriber between the watchers of a client', async () => {
+    it('should give each watcher of a client its own subscriber', async () => {
         const named = createClient({
             url: process.env.REDIS_CONNECTION_STRING,
             options: { connectionName: 'watcher-shared' },
@@ -308,9 +308,14 @@ describe('watcher', () => {
         try {
             await named.ping();
             await Promise.all([first.start(), second.start()]);
-            expect(await countConnections()).toEqual(2);
+            expect(await countConnections()).toEqual(3);
 
             await first.stop();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(await countConnections()).toEqual(2);
+
             await named.set('shared:1', 'x');
             await new Promise((resolve) => {
                 setTimeout(resolve, 100);
