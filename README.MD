@@ -259,7 +259,7 @@ await leaderboard.increment('alice'); // 11
 
 - The board is a sorted set stored under `key`, which defaults to `score-board`. Give each board its own key; boards with the same key share their members.
 - `add(id, score?)` runs `ZADD`. Adding an existing id updates its score. The score defaults to `Date.now()`, the current unix timestamp in milliseconds.
-- `get(options?)` returns members highest score first (`sort: 'DESC'`), or lowest first with `sort: 'ASC'`. `offset` skips members and `limit` caps how many come back, and `meta.total` counts all members. Ids come back as strings and scores as numbers. The page and the total are read in one `MULTI`, so `total` matches `data` while other clients write.
+- `get(options?)` returns members highest score first (`sort: 'DESC'`), or lowest first with `sort: 'ASC'`. `offset` skips members and `limit` caps how many come back, and `meta.total` counts all members. Ids come back as strings and scores as numbers. `meta.limit` and `meta.offset` are set when you pass them. The page and the total are read in one `MULTI`, so `total` matches `data` while other clients write; a `WATCH` you hold on the same connection aborts that `MULTI`, and `get()` rejects. Scores of `Infinity` and `-Infinity` round-trip.
 - `score(id)` resolves the score of a member, `rank(id, sort?)` its zero-based position (highest score first by default). Both resolve `undefined` for an unknown member.
 - `increment(id, by?)` adds `by` (default `1`) to the score with `ZINCRBY` and resolves the new score; an unknown member starts at `0`.
 - `prune(below)` removes every member with a score lower than `below` and resolves how many it removed.
