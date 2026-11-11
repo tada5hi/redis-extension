@@ -6,7 +6,7 @@
  */
 
 import type { Config, ConfigInput } from './types';
-import { buildConfig, buildConfigWithDefaults } from './utils';
+import { buildConfigWithDefaults } from './utils';
 
 const getAlias = (alias?: string) => alias || 'default';
 
@@ -18,7 +18,7 @@ export function setConfig(
 ) {
     alias = getAlias(alias);
 
-    instances[alias] = buildConfig(value);
+    instances[alias] = buildConfigWithDefaults(value);
 }
 
 export function hasConfig(alias?: string) {

@@ -10,13 +10,21 @@ export enum WatcherEvent {
     COPY_TO = 'copy_to',
     DEL = 'del',
     EXPIRE = 'expire',
+    /**
+     * When a key is removed because its TTL ran out.
+     */
+    EXPIRED = 'expired',
+    /**
+     * When a key is removed by the maxmemory policy.
+     */
+    EVICTED = 'evicted',
     HDEL = 'hdel',
     HEXPIRE = 'hexpire',
     /**
      * When fields expire.
      */
     HEXPIRED = 'hexpired',
-    HINCRBYFLAOT = 'hincrbyfloat',
+    HINCRBYFLOAT = 'hincrbyfloat',
     HINCRBY = 'hincrby',
     HPERSIST = 'hpersist',
     /**
@@ -70,7 +78,7 @@ export enum WatcherEvent {
 
     SINTERSTORE = 'sinterstore',
     SUNIONSTORE = 'sunionstore',
-    SIDFFSTORE = 'sdiffstore',
+    SDIFFSTORE = 'sdiffstore',
     SORTSTORE = 'sortstore',
 
     XADD = 'xadd',
@@ -78,8 +86,8 @@ export enum WatcherEvent {
     XDEL = 'xdel',
 
     XGROUP_CREATECONSUMER = 'xgroup-createconsumer',
-    XGROUP_CREATE = 'XGROUP_CREATE',
-    XGROUP_DELCONSUMER = 'xgroup-delcosnumer',
+    XGROUP_CREATE = 'xgroup-create',
+    XGROUP_DELCONSUMER = 'xgroup-delconsumer',
     XGROUP_DESTROY = 'xgroup-destroy',
     XGROUP_SETID = 'xgroup-setid',
     XSETID = 'xsetid',
