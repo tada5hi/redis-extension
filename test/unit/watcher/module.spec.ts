@@ -1,7 +1,7 @@
 import { once } from 'node:events';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { Client } from '../../../src';
-import { Watcher, buildKeyPath, createClient } from '../../../src';
+import { Watcher, WatcherEvent, buildKeyPath, createClient } from '../../../src';
 
 describe('watcher', () => {
     let client: Client;
@@ -57,6 +57,39 @@ describe('watcher', () => {
             expect(deletedKey).toEqual('foo');
         } finally {
             await watcher.stop();
+        }
+    });
+
+    it('should type the expired event', async () => {
+        const watcher = new Watcher(client, { pattern: 'typed' });
+
+        try {
+            await watcher.start();
+            const expired = new Promise<string>((resolve) => {
+                watcher.on(WatcherEvent.EXPIRED, resolve);
+            });
+            await client.set('typed', 'bar', 'PX', 100);
+            expect(await expired).toEqual('typed');
+        } finally {
+            await watcher.stop();
+        }
+    });
+
+    it('should not configure the server when notifyKeyspaceEvents is false', async () => {
+        await client.config('SET', 'notify-keyspace-events', 'Kg$');
+        const watcher = new Watcher(client, { pattern: 'manual', notifyKeyspaceEvents: false });
+
+        try {
+            await watcher.start();
+            expect(await client.config('GET', 'notify-keyspace-events')).toEqual(['notify-keyspace-events', 'g$K']);
+
+            const event = once(watcher, 'set');
+            await client.set('manual', 'bar');
+            const [key] = await event;
+            expect(key).toEqual('manual');
+        } finally {
+            await watcher.stop();
+            await client.config('SET', 'notify-keyspace-events', '');
         }
     });
 });

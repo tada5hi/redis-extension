@@ -15,5 +15,13 @@ export type WatcherOptions = {
      *
      * @see https://redis.io/docs/latest/commands/psubscribe/
      */
-    pattern?: string | string[]
+    pattern?: string | string[],
+    /**
+     * Value written to the server's notify-keyspace-events setting on start().
+     * Set to false when the server is configured already, or when the CONFIG
+     * command is not allowed (e.g. on managed Redis services).
+     *
+     * default: 'KA'
+     */
+    notifyKeyspaceEvents?: string | false
 };
