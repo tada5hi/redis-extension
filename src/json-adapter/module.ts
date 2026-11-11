@@ -5,8 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { Cluster } from '../driver';
-import type { Client } from '../driver';
+import type { Client, Cluster } from '../driver';
 import type { JSONAdapterOptions, JSONAdapterSerializer, JSONAdapterSetOptions } from './types';
 
 export class JsonAdapter<T = any> {
@@ -28,7 +27,12 @@ export class JsonAdapter<T = any> {
      * @returns true when the value was written, false when ifExists or ifNotExists skipped the write.
      */
     async set(key: string, value: T, options: JSONAdapterSetOptions = {}) : Promise<boolean> {
-        const data = this.serializer.stringify(value);
+        // JSON.stringify returns undefined for undefined, functions and symbols
+        const data : unknown = this.serializer.stringify(value);
+
+        if (typeof data !== 'string') {
+            throw new TypeError(`The value for the key ${key} cannot be serialized.`);
+        }
 
         let milliseconds : number | undefined;
 
@@ -36,6 +40,11 @@ export class JsonAdapter<T = any> {
             milliseconds = options.milliseconds;
         } else if (options.seconds) {
             milliseconds = options.seconds * 1000;
+        }
+
+        if (milliseconds) {
+            // PX takes a positive integer
+            milliseconds = Math.max(1, Math.round(milliseconds));
         }
 
         let result : string | null;
@@ -73,8 +82,8 @@ export class JsonAdapter<T = any> {
      * @returns the value, or undefined when the key does not exist, its value
      * cannot be deserialized, or parse rejects it.
      */
-    async get<R = T>(key: string) : Promise<undefined | R> {
-        return this.read(await this.client.get(key)) as R | undefined;
+    async get(key: string) : Promise<undefined | T> {
+        return this.read(await this.client.get(key));
     }
 
     /**
@@ -88,7 +97,8 @@ export class JsonAdapter<T = any> {
             return [];
         }
 
-        const entries = this.client instanceof Cluster ?
+        // isCluster, not instanceof: the caller's ioredis can be another copy
+        const entries = this.client.isCluster ?
             await Promise.all(keys.map((key) => this.client.get(key))) :
             await this.client.mget(keys);
 
@@ -112,7 +122,8 @@ export class JsonAdapter<T = any> {
 
     /**
      * Read a value, or compute, store and return it when it is missing.
-     * Concurrent callers can each run the factory; the last write wins.
+     * Concurrent callers can each run the factory; with ifNotExists, the
+     * first write wins and every caller resolves the stored value.
      */
     async getOrSet(
         key: string,
@@ -127,7 +138,14 @@ export class JsonAdapter<T = any> {
 
         const value = await factory();
 
-        await this.set(key, value, options);
+        if (!await this.set(key, value, options)) {
+            // ifNotExists lost to a concurrent write: resolve what is stored
+            const stored = await this.get(key);
+
+            if (typeof stored !== 'undefined') {
+                return stored;
+            }
+        }
 
         return value;
     }

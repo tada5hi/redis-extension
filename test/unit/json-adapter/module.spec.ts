@@ -157,4 +157,45 @@ describe.each(connections)('json-adapter (%s)', (_name, connect) => {
 
         await adapter.drop('serializer');
     });
+
+    it('should resolve the stored value when a concurrent getOrSet wins', async () => {
+        const adapter = new JsonAdapter<string>(client);
+        const slow = (value: string) => async () => {
+            await new Promise((resolve) => {
+                setTimeout(resolve, 20); 
+            });
+
+            return value;
+        };
+
+        const results = await Promise.all([
+            adapter.getOrSet('race', slow('A'), { ifNotExists: true }),
+            adapter.getOrSet('race', slow('B'), { ifNotExists: true }),
+        ]);
+
+        const stored = await adapter.get('race');
+
+        expect(results).toEqual([stored, stored]);
+
+        await adapter.drop('race');
+    });
+
+    it('should reject a value that cannot be serialized', async () => {
+        const adapter = new JsonAdapter(client);
+
+        await expect(adapter.set('undefined', undefined)).rejects.toThrow(TypeError);
+        await expect(adapter.getOrSet('undefined', () => undefined)).rejects.toThrow(TypeError);
+        expect(await client.exists('undefined')).toEqual(0);
+    });
+
+    it('should accept fractional time to live values', async () => {
+        const adapter = new JsonAdapter(client);
+
+        expect(await adapter.set('fraction:seconds', 1, { seconds: 1.0005 })).toEqual(true);
+        expect(await adapter.set('fraction:milliseconds', 1, { milliseconds: 1500.5 })).toEqual(true);
+        expect(await client.pttl('fraction:seconds')).toBeGreaterThan(0);
+
+        await adapter.drop('fraction:seconds');
+        await adapter.drop('fraction:milliseconds');
+    });
 });
