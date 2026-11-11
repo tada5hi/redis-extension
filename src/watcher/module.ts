@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { EventEmitter, once } from 'node:events';
+import { EventEmitter } from 'node:events';
 import type { Cluster, Redis } from 'ioredis';
 import { escapeKey } from '../key';
 import type { WatcherEvent } from './consants';
@@ -181,9 +181,53 @@ export class Watcher extends EventEmitter {
         if (cluster.status === 'wait') {
             await cluster.connect();
         } else if (cluster.status !== 'ready') {
-            await once(cluster, 'ready');
+            await this.ready(cluster);
         }
 
         return cluster.nodes('master');
+    }
+
+    /**
+     * Wait until the cluster is ready. Errors on the way are not terminal,
+     * since ioredis keeps retrying; a closed cluster is.
+     */
+    protected ready(cluster: Cluster) : Promise<void> {
+        // only disconnect(), quit() or giving up lead to these states
+        const closed = () => cluster.status === 'end' || cluster.status === 'disconnecting';
+
+        return new Promise((resolve, reject) => {
+            if (closed()) {
+                reject(new Error('The cluster connection is closed.'));
+
+                return;
+            }
+
+            const onReady = () => {
+                cleanup();
+                resolve();
+            };
+            const onEnd = () => {
+                cleanup();
+                reject(new Error('The cluster connection closed before it was ready.'));
+            };
+            // a cluster disconnected while connecting stays 'disconnecting' and
+            // emits no 'end', so the status is checked as well
+            const interval = setInterval(() => {
+                if (closed()) {
+                    onEnd();
+                }
+            }, 100);
+
+            interval.unref();
+
+            const cleanup = () => {
+                clearInterval(interval);
+                cluster.off('ready', onReady);
+                cluster.off('end', onEnd);
+            };
+
+            cluster.on('ready', onReady);
+            cluster.on('end', onEnd);
+        });
     }
 }

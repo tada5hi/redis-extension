@@ -55,8 +55,9 @@ export class Subscriber {
             const connection = this.connect();
 
             try {
+                // on the client: a subscribed RESP2 connection rejects CONFIG
                 if (notifyKeyspaceEvents !== false) {
-                    await connection.config('SET', 'notify-keyspace-events', notifyKeyspaceEvents);
+                    await this.client.config('SET', 'notify-keyspace-events', notifyKeyspaceEvents);
                 }
 
                 const fresh = patterns.filter((pattern) => !this.listeners.has(pattern));
@@ -131,7 +132,14 @@ export class Subscriber {
             return this.connection;
         }
 
-        const connection = this.client.duplicate();
+        // cluster nodes never reconnect (retryStrategy null), since the cluster
+        // refreshes its slots instead; the subscriber has to reconnect itself,
+        // and ioredis then restores its pattern subscriptions
+        const connection = this.client.duplicate(
+            this.client.options.retryStrategy ?
+                {} :
+                { retryStrategy: (times: number) => Math.min(times * 50, 2000) },
+        );
 
         connection.on('pmessage', (pattern: string, channel: string, event: string) => {
             const listeners = this.listeners.get(pattern);
