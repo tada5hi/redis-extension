@@ -1,0 +1,26 @@
+<svg width="256" height="256" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rx-title">
+    <title id="rx-title">redis-extension logo: a key sending out keyspace event waves</title>
+    <defs>
+        <linearGradient id="rx-key" x1="56" y1="96" x2="232" y2="176" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#F0505A"/>
+            <stop offset="1" stop-color="#B4232C"/>
+        </linearGradient>
+    </defs>
+    <!-- keyspace events leaving the key: set, expire, expired -->
+    <g stroke="#E5484D" stroke-width="10" stroke-linecap="round">
+        <path d="M53.2 104.4 A62 62 0 0 1 98.6 78.2" opacity="0.9">
+            <animate attributeName="opacity" values="0;0;0.9" keyTimes="0;0.25;1" dur="0.8s" fill="freeze"/>
+        </path>
+        <path d="M38.5 94.1 A80 80 0 0 1 97.0 60.3" opacity="0.6">
+            <animate attributeName="opacity" values="0;0;0.6" keyTimes="0;0.5;1" dur="1.2s" fill="freeze"/>
+        </path>
+        <path d="M23.7 83.7 A98 98 0 0 1 95.5 42.4" opacity="0.3">
+            <animate attributeName="opacity" values="0;0;0.3" keyTimes="0;0.625;1" dur="1.6s" fill="freeze"/>
+        </path>
+    </g>
+    <!-- the key -->
+    <circle cx="104" cy="140" r="34" fill="#E5484D" fill-opacity="0.16"/>
+    <circle cx="104" cy="140" r="40" stroke="url(#rx-key)" stroke-width="16"/>
+    <circle cx="104" cy="140" r="9" fill="url(#rx-key)"/>
+    <path d="M144 140 H226 M200 140 V168 M222 140 V160" stroke="url(#rx-key)" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

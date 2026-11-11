@@ -1,0 +1,116 @@
+<svg width="960" height="360" viewBox="0 0 960 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rxw-title rxw-desc">
+    <title id="rxw-title">How a Watcher turns keyspace notifications into events</title>
+    <desc id="rxw-desc">watcher.start() sets notify-keyspace-events to KA on the Redis server and opens a duplicate connection that pattern-subscribes to __key*__:user:*. When the client runs SET user:1 with PX 300, Redis publishes set and expire on the channel __keyspace@0__:user:1, and expired 300 ms later. The Watcher emits each one as an event with the key user:1; keyevent channels are filtered out.</desc>
+
+    <style>
+        :root {
+            --fg: #241B1C;
+            --muted: #6B5D5F;
+            --panel: #FBF6F6;
+            --panel-edge: #E7D7D8;
+            --card: #FFFFFF;
+            --rail: #9C8B8D;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --fg: #F6EEEE;
+                --muted: #B3A2A4;
+                --panel: #1A1314;
+                --panel-edge: #4A3537;
+                --card: #110C0D;
+                --rail: #7A6668;
+            }
+        }
+        text { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; fill: var(--fg); }
+        .muted { fill: var(--muted); }
+        .code { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; }
+        .label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; fill: var(--muted); }
+        .title { font-size: 15px; font-weight: 600; }
+        .panel { fill: var(--panel); stroke: var(--panel-edge); }
+        .card { fill: var(--card); }
+        .rail { stroke: var(--rail); }
+        .chip { fill: var(--card); stroke: var(--panel-edge); }
+    </style>
+
+    <defs>
+        <marker id="rxw-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <path d="M0 0 L10 5 L0 10 Z" fill="#9C8B8D"/>
+        </marker>
+    </defs>
+
+    <!-- your process -->
+    <rect class="panel" x="16" y="16" width="328" height="272" rx="18"/>
+    <text class="label" x="36" y="44">your process</text>
+
+    <rect class="card" x="32" y="60" width="296" height="72" rx="12" stroke="#5B6CC9" stroke-width="1.5"/>
+    <text class="title" x="50" y="88">client</text>
+    <text class="code muted" x="50" y="112" font-size="12">client.set('user:1', v, 'PX', 300)</text>
+
+    <rect class="card" x="32" y="156" width="296" height="116" rx="12" stroke="#5B6CC9" stroke-width="1.5"/>
+    <text class="title" x="50" y="184">Watcher</text>
+    <text class="code muted" x="50" y="208" font-size="12">start(): client.duplicate()</text>
+    <text class="code muted" x="50" y="230" font-size="12">PSUBSCRIBE __key*__:user:*</text>
+    <text class="code" x="50" y="256" font-size="12">emit(event, 'user:1')</text>
+
+    <!-- redis -->
+    <rect class="panel" x="384" y="16" width="560" height="272" rx="18"/>
+    <text class="label" x="404" y="44">redis server</text>
+
+    <rect class="card" x="400" y="60" width="528" height="72" rx="12" stroke="#E5484D" stroke-width="1.5"/>
+    <text class="title code" x="418" y="88" font-size="14">notify-keyspace-events KA</text>
+    <text class="muted" x="418" y="112" font-size="12">written by watcher.start(): keyspace channels (K) for all event classes (A)</text>
+
+    <rect class="card" x="400" y="156" width="528" height="116" rx="12" stroke="#E5484D" stroke-width="1.5"/>
+    <text class="label" x="418" y="180">published on</text>
+    <text class="code" x="524" y="180" font-size="12">__keyspace@0__:user:1</text>
+    <rect x="418" y="192" width="64" height="20" rx="10" fill="#E5484D" fill-opacity="0.14" stroke="#E5484D" stroke-opacity="0.6"/>
+    <text class="code" x="450" y="206" font-size="11" text-anchor="middle">set</text>
+    <text class="muted" x="496" y="206" font-size="12">value written</text>
+    <rect x="418" y="218" width="64" height="20" rx="10" fill="#E5484D" fill-opacity="0.14" stroke="#E5484D" stroke-opacity="0.6"/>
+    <text class="code" x="450" y="232" font-size="11" text-anchor="middle">expire</text>
+    <text class="muted" x="496" y="232" font-size="12">TTL set by PX</text>
+    <rect x="418" y="244" width="64" height="20" rx="10" fill="#E5484D" fill-opacity="0.14" stroke="#E5484D" stroke-opacity="0.6"/>
+    <text class="code" x="450" y="258" font-size="11" text-anchor="middle">expired</text>
+    <text class="muted" x="496" y="258" font-size="12">300 ms later, key removed</text>
+    <text class="muted" x="910" y="258" font-size="12" text-anchor="end">__keyevent@… channels: dropped</text>
+
+    <!-- SET goes to redis -->
+    <path class="rail" d="M328 96 H398" stroke-width="2" marker-end="url(#rxw-head)"/>
+    <rect class="chip" x="344" y="74" width="40" height="18" rx="9"/>
+    <text class="code" x="364" y="87" font-size="10" text-anchor="middle">SET</text>
+
+    <!-- notifications come back -->
+    <path class="rail" d="M400 214 H330" stroke-width="2" marker-end="url(#rxw-head)"/>
+    <rect class="chip" x="334" y="222" width="60" height="18" rx="9"/>
+    <text class="code" x="364" y="235" font-size="10" text-anchor="middle">pmessage</text>
+
+    <!-- one pass: the write, then the three notifications; each dot ends hidden -->
+    <g opacity="0">
+        <circle r="8" fill="#5B6CC9" fill-opacity="0.25"/>
+        <circle r="4" fill="#5B6CC9"/>
+        <animateMotion dur="0.9s" begin="0.2s" fill="freeze" path="M328 96 H400"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="0.9s" begin="0.2s" fill="freeze"/>
+    </g>
+    <g opacity="0">
+        <circle r="8" fill="#E5484D" fill-opacity="0.25"/>
+        <circle r="4" fill="#E5484D"/>
+        <animateMotion dur="0.9s" begin="1.2s" fill="freeze" path="M400 214 H330"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="0.9s" begin="1.2s" fill="freeze"/>
+    </g>
+    <g opacity="0">
+        <circle r="8" fill="#E5484D" fill-opacity="0.25"/>
+        <circle r="4" fill="#E5484D"/>
+        <animateMotion dur="0.9s" begin="1.6s" fill="freeze" path="M400 214 H330"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="0.9s" begin="1.6s" fill="freeze"/>
+    </g>
+    <g opacity="0">
+        <circle r="8" fill="#E5484D" fill-opacity="0.25"/>
+        <circle r="4" fill="#E5484D"/>
+        <animateMotion dur="0.9s" begin="2.6s" fill="freeze" path="M400 214 H330"/>
+        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.85;1" dur="0.9s" begin="2.6s" fill="freeze"/>
+    </g>
+
+    <!-- caveat -->
+    <rect class="panel" x="16" y="304" width="928" height="44" rx="14" stroke-dasharray="5 5"/>
+    <text class="muted" x="36" y="331" font-size="13">At most once: changes before start() or during a reconnect emit nothing. stop() leaves the server setting in place.</text>
+</svg>
