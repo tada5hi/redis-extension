@@ -67,11 +67,17 @@ export class Watcher extends EventEmitter {
 
         const { notifyKeyspaceEvents = 'KA' } = this.options;
 
-        if (notifyKeyspaceEvents !== false) {
-            await subscriber.config('SET', 'notify-keyspace-events', notifyKeyspaceEvents);
-        }
+        try {
+            if (notifyKeyspaceEvents !== false) {
+                await subscriber.config('SET', 'notify-keyspace-events', notifyKeyspaceEvents);
+            }
 
-        await subscriber.psubscribe(...this.subscribePatterns);
+            await subscriber.psubscribe(...this.subscribePatterns);
+        } catch (error) {
+            subscriber.disconnect();
+
+            throw error;
+        }
 
         subscriber.on('error', (error) => {
             this.emit('error', error);

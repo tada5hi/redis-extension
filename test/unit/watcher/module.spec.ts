@@ -92,4 +92,15 @@ describe('watcher', () => {
             await client.config('SET', 'notify-keyspace-events', '');
         }
     });
+
+    it('should close the subscriber connection when start fails', async () => {
+        const countClients = async () => (await client.client('LIST') as string).trim().split('\n').length;
+        const before = await countClients();
+        const watcher = new Watcher(client, { notifyKeyspaceEvents: 'not-a-flag' });
+
+        await expect(watcher.start()).rejects.toThrow();
+        await new Promise((resolve) => { setTimeout(resolve, 100); });
+
+        expect(await countClients()).toEqual(before);
+    });
 });
