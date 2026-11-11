@@ -11,4 +11,4 @@
 
 The package exports map declares the package root, `./package.json`. Use these declared entrypoints under exports-aware resolution; undeclared `dist/` paths are not additional public exports. Preserve the declared output paths. `types.ts` files own shared type declarations. The package keeps no module-level connection state; callers own each client's lifetime.
 
-The build runs tsdown and refreshes declarations through `build:types` after successful JavaScript builds. Generated `dist/` files are build artifacts.
+The package is ESM only (`"type": "module"`). The build runs tsdown, which writes `dist/index.js` and one bundled `dist/index.d.ts`. Generated `dist/` files are build artifacts.

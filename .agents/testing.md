@@ -4,4 +4,4 @@
 
 Tests start a disposable Redis container and a three-master Redis Cluster container through `test/setup.js`; Docker access is required. The `ValueStore` and `ScoreBoard` specs run against both through `test/utils/connections.ts`, and the `Watcher` spec covers the cluster. Preserve key construction, connection configuration and watcher cleanup.
 
-Run the build when changing exported types or bundle configuration. Validate both CommonJS and ESM consumer entrypoints when altering package exports. A missing external service is an incomplete check, not a passing test.
+Run the build when changing exported types or bundle configuration. Validate an ESM `import`, a CommonJS `require()` (Node loads the ES module) and a TypeScript consumer with `NodeNext` resolution when altering package exports. A missing external service is an incomplete check, not a passing test.

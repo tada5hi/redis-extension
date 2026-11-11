@@ -2,11 +2,10 @@ import { defineConfig } from 'tsdown';
 
 export default defineConfig({
     entry: 'src/index.ts',
-    format: ['cjs', 'esm'],
-    dts: false,
-    onSuccess: 'npm run build:types',
+    format: ['esm'],
+    dts: true,
     clean: false,
     target: 'es2020',
     sourcemap: true,
-    outExtensions: ({ format }) => ({ js: format === 'es' ? '.mjs' : '.cjs' }),
+    outExtensions: () => ({ js: '.js', dts: '.d.ts' }),
 });

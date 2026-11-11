@@ -2,8 +2,8 @@
     "name": "redis-extension",
     "version": "2.0.4",
     "description": "Key watchers, typed values, scoreboards and key paths for ioredis clients and clusters.",
-    "main": "dist/index.cjs",
-    "module": "dist/index.mjs",
+    "type": "module",
+    "main": "dist/index.js",
     "types": "dist/index.d.ts",
     "files": [
         "dist"
@@ -12,12 +12,10 @@
         "./package.json": "./package.json",
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.mjs",
-            "require": "./dist/index.cjs"
+            "default": "./dist/index.js"
         }
     },
     "scripts": {
-        "build:types": "tsc --emitDeclarationOnly",
         "build:js": "tsdown",
         "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && npm run build:js",
         "lint": "eslint src AGENTS.md CLAUDE.md .agents",

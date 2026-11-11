@@ -1,4 +1,4 @@
-const { GenericContainer } = require('testcontainers');
+import { GenericContainer } from 'testcontainers';
 
 const CLUSTER_PORTS = [7000, 7001, 7002];
 const CLUSTER_SLOTS = [['0', '5460'], ['5461', '10922'], ['10923', '16383']];
@@ -62,7 +62,7 @@ async function startCluster() {
     return container;
 }
 
-module.exports = async () => {
+export default async () => {
     const [container, cluster] = await Promise.all([
         new GenericContainer('redis:7.2.5').withExposedPorts(6379).start(),
         startCluster(),
