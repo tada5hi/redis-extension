@@ -1,6 +1,6 @@
 {
     "name": "redis-extension",
-    "version": "2.0.4",
+    "version": "3.0.0",
     "description": "Key watchers, typed values, scoreboards and key paths for ioredis clients and clusters.",
     "type": "module",
     "main": "dist/index.js",

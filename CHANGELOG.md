@@ -6,6 +6,46 @@
 * **deps:** bump the minorandpatch group with 12 updates ([#436](https://github.com/tada5hi/redis-extension/issues/436)) ([90d42aa](https://github.com/tada5hi/redis-extension/commit/90d42aa7fe981a23533305e19614915bd2ed3e21))
 * **deps:** remove unused node-schedule dependency ([1248497](https://github.com/tada5hi/redis-extension/commit/1248497afbfed56720f17c433a8a6f385e9734a4))
 
+## [3.0.0](https://github.com/tada5hi/redis-extension/compare/v2.0.4...v3.0.0) (2026-11-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* the CommonJS build dist/index.cjs is removed. CommonJS code loads the ES module with require() on Node.js 24 or newer.
+* ioredis ^6.0.0 is a peer dependency; install it next to redis-extension.
+* **value-store:** JsonAdapter is renamed to ValueStore, JSONAdapterOptions to ValueStoreOptions and JSONAdapterSetOptions to ValueStoreSetOptions. The stringify and parse options are renamed to serialize and deserialize.
+* **json-adapter:** ConfigInput is replaced by ClientInput ({ url, options }) for createClient() and ClusterInput ({ nodes, options }) for createCluster(). connectionString is renamed to url, clusterNodes and clusterOptions to nodes and options, and createCluster() no longer falls back to a connection string.
+* **score-board:** ConfigInput is replaced by ClientInput ({ url, options }) for createClient() and ClusterInput ({ nodes, options }) for createCluster(). connectionString is renamed to url, clusterNodes and clusterOptions to nodes and options, and createCluster() no longer falls back to a connection string.
+* ConfigInput is replaced by ClientInput ({ url, options }) for createClient() and ClusterInput ({ nodes, options }) for createCluster(). connectionString is renamed to url, clusterNodes and clusterOptions to nodes and options, and createCluster() no longer falls back to a connection string.
+* setConfig, useConfig, hasConfig, unsetConfig, buildConfig, buildConfigWithDefaults, useClient, setClient, hasClient, unsetClient, useCluster, setCluster, hasCluster and the Config type are removed, as are the config/* and driver/type declaration paths. ConfigInput moves to the driver module. createClient() without options now applies the defaults.
+* fix score board, watcher, json adapter and config behaviour ([#487](https://github.com/tada5hi/redis-extension/issues/487))
+* the package declares engines.node >=24.0.0.
+* **deps:** ioredis 6 requires Node.js 20 or newer.
+
+### Features
+
+* drop connection registries and accept clusters in helpers ([#488](https://github.com/tada5hi/redis-extension/issues/488)) ([8f3a52c](https://github.com/tada5hi/redis-extension/commit/8f3a52cee80ef0b3c1ff356e1a3e8227c16f9317))
+* fix score board, watcher, json adapter and config behaviour ([#487](https://github.com/tada5hi/redis-extension/issues/487)) ([439c5d3](https://github.com/tada5hi/redis-extension/commit/439c5d30a5d1ebabc049540ae8c7b4bb1b05477a))
+* **json-adapter:** add getOrSet, getMany, setMany, parse and serializer ([#491](https://github.com/tada5hi/redis-extension/issues/491)) ([c5a13fc](https://github.com/tada5hi/redis-extension/commit/c5a13fc30336b0bdcfa7691fe58b35d2d614e32a))
+* **score-board:** add prune, score, rank and increment ([#490](https://github.com/tada5hi/redis-extension/issues/490)) ([db26818](https://github.com/tada5hi/redis-extension/commit/db26818374e326f673bb269e7c7162dbaae1a42a))
+* separate client and cluster input, set result and key path fixes ([#489](https://github.com/tada5hi/redis-extension/issues/489)) ([fdac354](https://github.com/tada5hi/redis-extension/commit/fdac354084e6fdf81284899a94bc23f50e6f4562))
+* **value-store:** rename JsonAdapter to ValueStore ([3f25362](https://github.com/tada5hi/redis-extension/commit/3f25362b76490f30170a09baa3066c77149a1517))
+* **watcher:** watch clusters, subscribe per watcher and support await using ([#492](https://github.com/tada5hi/redis-extension/issues/492)) ([cf9f747](https://github.com/tada5hi/redis-extension/commit/cf9f74755f98628cd1219c5d8a6d3d9773b88d9b))
+
+
+### Bug Fixes
+
+* **deps:** bump actions/checkout from 6 to 7 ([#480](https://github.com/tada5hi/redis-extension/issues/480)) ([0829cf7](https://github.com/tada5hi/redis-extension/commit/0829cf7f1804b8fa852194d355147d1b9054b142))
+* **deps:** bump ioredis to v6 ([96c6fdb](https://github.com/tada5hi/redis-extension/commit/96c6fdb16c0f88106d2b0f7fcd484f91ad62cc83))
+* **deps:** bump the minorandpatch group across 1 directory with 9 updates ([#478](https://github.com/tada5hi/redis-extension/issues/478)) ([51baa10](https://github.com/tada5hi/redis-extension/commit/51baa10c7c4190cc441e3ac7631078ae2447fffc))
+
+
+### Build System
+
+* publish an ES module only ([aeac4fb](https://github.com/tada5hi/redis-extension/commit/aeac4fbf64fcc5fbb3f13db834d0e0587e8484f2))
+* require ioredis as a peer dependency and publish only dist ([73aea50](https://github.com/tada5hi/redis-extension/commit/73aea505f5992a76338ba33ec2ce3e253a436c92))
+* require Node.js 24 or newer ([ba5a8f5](https://github.com/tada5hi/redis-extension/commit/ba5a8f5d75ab190c150222289a1de4bae9ddd6ac))
+
 ## [2.0.4](https://github.com/tada5hi/redis-extension/compare/v2.0.3...v2.0.4) (2025-11-26)
 
 
