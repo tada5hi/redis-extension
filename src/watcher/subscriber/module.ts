@@ -6,18 +6,16 @@
  */
 
 import type { Redis } from 'ioredis';
-import type { SubscriberListener } from './types';
-
+import type { ISubscriber, SubscriberListener } from './types';
 
 const subscribers = new WeakMap<Redis, Subscriber>();
 
 /**
  * One pattern-subscribed duplicate connection per Redis connection, shared
  * by every watcher of that connection. Patterns are counted per listener,
- * and add() and remove() run one after another, so overlapping starts and
- * stops cannot leak or lose the connection.
+ * and operations run through one queue.
  */
-export class Subscriber {
+export class Subscriber implements ISubscriber {
     protected client: Redis;
 
     protected connection : Redis | undefined;
@@ -30,7 +28,7 @@ export class Subscriber {
         this.client = client;
     }
 
-    static for(client: Redis) : Subscriber {
+    static for(client: Redis) : ISubscriber {
         let subscriber = subscribers.get(client);
 
         if (!subscriber) {
@@ -41,11 +39,6 @@ export class Subscriber {
         return subscriber;
     }
 
-    /**
-     * Subscribe the listener to the patterns.
-     *
-     * @param notifyKeyspaceEvents value for CONFIG SET notify-keyspace-events, or false to skip it
-     */
     add(
         patterns: string[],
         listener: SubscriberListener,
@@ -86,10 +79,7 @@ export class Subscriber {
         });
     }
 
-    /**
-     * Unsubscribe the listener from the patterns. The connection closes with
-     * the last pattern.
-     */
+    // the connection closes with the last pattern
     remove(patterns: string[], listener: SubscriberListener) : Promise<void> {
         return this.enqueue(async () => {
             const unused : string[] = [];

@@ -10,11 +10,11 @@ import type { Cluster, Redis } from 'ioredis';
 import { escapeKey } from '../key';
 import type { WatcherEvent } from './consants';
 import { Subscriber } from './subscriber';
-import type { SubscriberListener } from './subscriber';
+import type { ISubscriber, SubscriberListener } from './subscriber';
 import type { WatcherOptions } from './types';
 
 type Subscription = {
-    subscribers: Subscriber[],
+    subscribers: ISubscriber[],
     listener: SubscriberListener
 };
 
@@ -146,7 +146,7 @@ export class Watcher extends EventEmitter {
         };
 
         const { notifyKeyspaceEvents = 'KA' } = this.options;
-        const subscribers : Subscriber[] = [];
+        const subscribers : ISubscriber[] = [];
 
         try {
             for (const node of await this.nodes()) {
