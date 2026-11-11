@@ -30,51 +30,14 @@ export class ScoreBoard {
     //--------------------------------------------------------------------
 
     async get(options: ScoreBoardGetOptions = {}) : Promise<ScoreBoardGetOutput> {
-        options.sort = options.sort || 'DESC';
+        const { key } = this.options;
+        const offset = options.offset ?? 0;
+        // a negative count returns every member from the offset on
+        const count = options.limit ?? -1;
 
-        let data : string[];
-
-        if (typeof options.limit === 'undefined') {
-            if (options.sort === 'DESC') {
-                data = await this.client.zrevrangebyscore(
-                    this.options.key,
-                    '+inf',
-                    '-inf',
-                    'WITHSCORES',
-                );
-            } else {
-                data = await this.client.zrangebyscore(
-                    this.options.key,
-                    '-inf',
-                    '+inf',
-                    'WITHSCORES',
-                );
-            }
-        } else {
-            options.offset ??= 0;
-
-            if (options.sort === 'DESC') {
-                data = await this.client.zrevrangebyscore(
-                    this.options.key,
-                    '+inf',
-                    '-inf',
-                    'WITHSCORES',
-                    'LIMIT',
-                    options.offset,
-                    options.limit,
-                );
-            } else {
-                data = await this.client.zrangebyscore(
-                    this.options.key,
-                    '-inf',
-                    '+inf',
-                    'WITHSCORES',
-                    'LIMIT',
-                    options.offset,
-                    options.limit,
-                );
-            }
-        }
+        const data = (options.sort || 'DESC') === 'DESC' ?
+            await this.client.zrevrangebyscore(key, '+inf', '-inf', 'WITHSCORES', 'LIMIT', offset, count) :
+            await this.client.zrangebyscore(key, '-inf', '+inf', 'WITHSCORES', 'LIMIT', offset, count);
 
         const items : ScoreBoardItem[] = [];
 

@@ -146,4 +146,18 @@ describe.each(connections)('score-board (%s)', (_name, connect) => {
 
         await scoreBoard.drop('undefined-key');
     });
+
+    it('should apply offset without a limit', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'offset-only' });
+
+        await scoreBoard.add('first', 1);
+        await scoreBoard.add('second', 2);
+        await scoreBoard.add('third', 3);
+
+        const output = await scoreBoard.get({ sort: 'ASC', offset: 1 });
+        expect(output.data.map((item) => item.id)).toEqual(['second', 'third']);
+        expect(output.meta).toEqual({ total: 3, offset: 1 });
+
+        await scoreBoard.clear();
+    });
 });
