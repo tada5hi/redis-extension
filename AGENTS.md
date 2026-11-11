@@ -4,7 +4,7 @@ A Redis extension with connection configuration, key helpers, JSON adapters, sco
 
 ## Quick Reference
 
-Development tooling requires Node `^24.15.0 || >=26.0.0`; use npm for dependency management. The package manifest does not declare a Node runtime floor. Build-tool requirements do not authorize changing the published runtime contract.
+Development tooling requires Node `^24.15.0 || >=26.0.0`; use npm for dependency management. The package manifest declares the Node runtime floor `>=24.0.0` in `engines`. Build-tool requirements do not authorize changing the published runtime contract.
 
 ```bash
 npm ci

@@ -67,6 +67,9 @@
         "ioredis": "^6.0.0",
         "smob": "^1.6.1"
     },
+    "engines": {
+        "node": ">=24.0.0"
+    },
     "devEngines": {
         "runtime": {
             "name": "node",
