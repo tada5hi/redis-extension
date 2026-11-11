@@ -1,17 +1,17 @@
 import { once } from 'node:events';
-import { 
-    afterAll, 
-    beforeAll, 
-    describe, 
-    expect, 
-    it, 
+import {
+    afterAll,
+    beforeAll,
+    describe,
+    expect,
+    it,
 } from 'vitest';
 import type { Client } from '../../../src';
-import { 
-    Watcher, 
-    WatcherEvent, 
-    buildKeyPath, 
-    createClient, 
+import {
+    Watcher,
+    WatcherEvent,
+    buildKeyPath,
+    createClient,
 } from '../../../src';
 
 describe('watcher', () => {
@@ -27,9 +27,9 @@ describe('watcher', () => {
 
     it('should watch specific key', async () => {
         const keyPath = buildKeyPath({
-            prefix: 'prefix', 
-            key: 'key', 
-            suffix: 'suffix', 
+            prefix: 'prefix',
+            key: 'key',
+            suffix: 'suffix',
         });
         const watcher = new Watcher(client, { pattern: keyPath });
 
@@ -144,7 +144,7 @@ describe('watcher', () => {
 
             await expect(watcher.start()).rejects.toThrow();
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
 
             expect(await countConnections()).toEqual(before);
@@ -186,7 +186,7 @@ describe('watcher', () => {
             await client.set('database:from-db0', 'x');
             await db1.set('database:from-db1', 'x');
             await new Promise((resolve) => {
-                setTimeout(resolve, 200); 
+                setTimeout(resolve, 200);
             });
             expect(keys).toEqual(['database:from-db1']);
         } finally {
@@ -208,7 +208,7 @@ describe('watcher', () => {
             await client.set('other__:separator:1', 'x');
             await client.set('separator:2', 'x');
             await new Promise((resolve) => {
-                setTimeout(resolve, 200); 
+                setTimeout(resolve, 200);
             });
             expect(keys).toEqual(['separator:2']);
         } finally {
@@ -236,7 +236,7 @@ describe('watcher', () => {
 
             await watcher.stop();
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(await countConnections()).toEqual(1);
         } finally {
@@ -267,20 +267,20 @@ describe('watcher', () => {
 
             await Promise.all([first, stopping, second]);
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(await countConnections()).toEqual(2);
 
             await named.set('restart:1', 'x');
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(keys).toEqual(['restart:1']);
 
             await watcher.stop();
             await watcher.stop();
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(await countConnections()).toEqual(1);
         } finally {
