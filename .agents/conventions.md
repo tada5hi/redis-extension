@@ -2,7 +2,7 @@
 
 Use the installed shared ESLint configuration through the repository's lint command. Keep interface/type naming and declaration placement compatible with public exports; qualify filesystem/deep type compatibility against the declared exports map.
 
-Tests start a disposable Redis container through `test/setup.js`; Docker access is required. Preserve key construction, connection configuration and watcher cleanup.
+Tests start a disposable Redis container and a single-node Redis Cluster container through `test/setup.js`; Docker access is required. The `JsonAdapter` and `ScoreBoard` specs run against both, through `test/utils/connections.ts`. Preserve key construction, connection configuration and watcher cleanup.
 
 Keep the runtime engine and emitted JavaScript contract separate from tooling requirements. Bundler upgrades must retain output names, module formats, declaration generation and source-map behavior. Avoid introducing runtime APIs unsupported by the package's declared engine or documented consumers.
 
