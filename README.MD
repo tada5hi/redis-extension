@@ -216,7 +216,7 @@ await adapter.drop('user:51f3509d'); // true
 
 - `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value `stringify` turns into no string, such as `undefined` or a function under `JSON.stringify`. The [set options](#jsonadapter-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
 - `get(key)` resolves the value as the adapter's type `T`, or `undefined` when the key does not exist or `parse` throws or rejects for its value. It rejects when the command fails, for example on a connection error or a key of another type.
-- `getMany(keys)` resolves the values in the order of the keys, with `undefined` where `get()` would resolve `undefined`. It sends one `MGET` on a client and one `GET` per key on a cluster, whose keys can live on different nodes.
+- `getMany(keys)` resolves the values in the order of the keys, with `undefined` where `get()` would resolve `undefined`, and rejects where `get()` rejects, such as for a key of another type. It sends one `GET` per key, all at once, so the keys can live on different cluster nodes.
 - `setMany(entries, options?)` writes a record or a list of `[key, value]` pairs concurrently with the same options and resolves one `set()` result per entry. The writes are not atomic.
 - `getOrSet(key, factory, options?)` resolves the stored value, or calls `factory`, stores its result with `options` and resolves it.
 - `drop(key)` deletes the key and resolves `true` when a key was removed.
@@ -246,7 +246,7 @@ const report = await reports.getOrSet('report:today', () => buildReport(), {
 });
 ```
 
-A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value.
+A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value. With `ifNotExists`, an unreadable value is still replaced, unless another caller stored a readable one first.
 
 Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass your own `stringify`, `parse` or both to keep them. Either may return a Promise, for example to decrypt or to run an async schema check:
 
