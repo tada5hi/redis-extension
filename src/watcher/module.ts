@@ -7,15 +7,26 @@
 
 import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
+import { escapeKey } from '../key';
 import type { WatcherEvent } from './consants';
 import type { WatcherOptions } from './types';
 
 export class Watcher extends EventEmitter {
     protected client: Redis;
 
-    protected subscriberClient : Redis | undefined;
+    /**
+     * The start in progress or done, resolving the subscriber connection it
+     * opened. Each stop tears down the subscriber of the start it ends.
+     */
+    protected starting : Promise<Redis> | undefined;
 
     protected subscribePatterns: string[];
+
+    /**
+     * Fixed start of every subscribed channel: the keyspace channel of the
+     * client database, followed by the client keyPrefix.
+     */
+    protected channelPrefix: string;
 
     protected options : WatcherOptions;
 
@@ -33,18 +44,21 @@ export class Watcher extends EventEmitter {
         let patterns : string[];
 
         if (this.options.pattern) {
-            if (Array.isArray(this.options.pattern)) {
-                patterns = this.options.pattern.map(
-                    (pattern) => `__key*__:${pattern}`,
-                );
-            } else {
-                patterns = [`__key*__:${this.options.pattern}`];
-            }
+            patterns = Array.isArray(this.options.pattern) ?
+                this.options.pattern :
+                [this.options.pattern];
         } else {
-            patterns = ['__key*__:*'];
+            patterns = ['*'];
         }
 
-        this.subscribePatterns = patterns;
+        // ioredis applies keyPrefix to commands, but not to pattern subscriptions
+        const keyPrefix = client.options.keyPrefix || '';
+
+        this.channelPrefix = `__keyspace@${client.options.db || 0}__:${keyPrefix}`;
+
+        const channelPattern = `__keyspace@${client.options.db || 0}__:${escapeKey(keyPrefix)}`;
+
+        this.subscribePatterns = patterns.map((pattern) => `${channelPattern}${pattern}`);
     }
 
     //--------------------------------------------------------------------
@@ -57,12 +71,52 @@ export class Watcher extends EventEmitter {
         return super.on(event, listener);
     }
 
-    /* istanbul ignore next */
+    /**
+     * Subscribe to the keyspace notifications. Calls while the watcher is
+     * starting or running share that start.
+     */
     async start() : Promise<void> {
-        if (this.subscriberClient) {
+        if (!this.starting) {
+            const starting = this.subscribe();
+
+            this.starting = starting;
+
+            // a failed start allows the next one, unless a stop and restart replaced it
+            starting.catch(() => {
+                if (this.starting === starting) {
+                    this.starting = undefined;
+                }
+            });
+        }
+
+        await this.starting;
+    }
+
+    async stop() : Promise<void> {
+        const { starting } = this;
+
+        if (!starting) {
             return;
         }
 
+        this.starting = undefined;
+
+        let subscriber : Redis;
+
+        try {
+            subscriber = await starting;
+        } catch {
+            return;
+        }
+
+        try {
+            await subscriber.punsubscribe(...this.subscribePatterns);
+        } finally {
+            subscriber.disconnect();
+        }
+    }
+
+    protected async subscribe() : Promise<Redis> {
         const subscriber = this.client.duplicate();
 
         const { notifyKeyspaceEvents = 'KA' } = this.options;
@@ -83,29 +137,18 @@ export class Watcher extends EventEmitter {
             this.emit('error', error);
         });
 
-        subscriber.on('pmessage', (_pattern, _channel, event) => {
-            if ((!this.subscribePatterns.includes(_pattern)) || !_channel.startsWith('__keyspace')) {
+        subscriber.on('pmessage', (pattern: string, channel: string, event: string) => {
+            if (!this.subscribePatterns.includes(pattern)) {
                 return;
             }
 
-            const key = _channel.split('__:').pop();
+            const key = channel.substring(this.channelPrefix.length);
 
-            if (key && key.length > 0) {
+            if (key.length > 0) {
                 this.emit(event, key);
             }
         });
 
-        this.subscriberClient = subscriber;
-    }
-
-    /* istanbul ignore next */
-    async stop() : Promise<void> {
-        if (!this.subscriberClient) {
-            return;
-        }
-
-        await this.subscriberClient.punsubscribe(...this.subscribePatterns);
-        this.subscriberClient.disconnect();
-        this.subscriberClient = undefined;
+        return subscriber;
     }
 }

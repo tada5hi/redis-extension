@@ -6,17 +6,8 @@
  */
 
 import { Cluster } from 'ioredis';
-import type { ClusterNode, ConfigInput } from './types';
+import type { ClusterInput } from './types';
 
-export function createCluster(input: ConfigInput = {}) : Cluster {
-    let nodes : ClusterNode[] = input.clusterNodes || [];
-
-    if (
-        nodes.length === 0 &&
-        input.connectionString
-    ) {
-        nodes = [input.connectionString];
-    }
-
-    return new Cluster(nodes, input.clusterOptions);
+export function createCluster(input: ClusterInput) : Cluster {
+    return new Cluster(input.nodes, input.options);
 }

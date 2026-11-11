@@ -6,7 +6,7 @@
  */
 
 import { Redis } from 'ioredis';
-import type { Client, ClientOptions, ConfigInput } from './types';
+import type { Client, ClientInput, ClientOptions } from './types';
 
 function withDefaults(options: ClientOptions = {}): ClientOptions {
     return {
@@ -21,11 +21,11 @@ function withDefaults(options: ClientOptions = {}): ClientOptions {
     };
 }
 
-export function createClient(input: ConfigInput = {}) : Client {
+export function createClient(input: ClientInput = {}) : Client {
     const options = withDefaults(input.options);
 
-    if (input.connectionString) {
-        return new Redis(input.connectionString, options);
+    if (input.url) {
+        return new Redis(input.url, options);
     }
 
     return new Redis(options);

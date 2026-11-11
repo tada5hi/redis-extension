@@ -89,4 +89,10 @@ describe('src/utils/key.ts', () => {
         expect(result.prefix).toEqual('prefix');
         expect(result.suffix).toEqual('suffix');
     });
+
+    it('should keep whitespace when parsing a built path', () => {
+        const path = { prefix: 'tenant 1', key: 'user name', suffix: 'v 2' };
+
+        expect(parseKeyPath(buildKeyPath(path))).toEqual(path);
+    });
 });

@@ -11,8 +11,6 @@ import type { KeyPath } from './types';
 export function parseKeyPath(
     keyPath: string,
 ) : KeyPath {
-    keyPath = keyPath.replace(/\s/g, '');
-
     let prefix : string | undefined;
     let suffix : string | undefined;
 

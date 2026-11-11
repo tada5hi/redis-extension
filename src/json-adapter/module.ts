@@ -15,7 +15,14 @@ export class JsonAdapter {
         this.client = client;
     }
 
-    async set(key: string, value: any, options: JSONAdapterSetOptions = {}) {
+    /**
+     * Write the value as JSON.
+     *
+     * @returns true when the value was written, false when ifExists or ifNotExists skipped the write.
+     */
+    async set(key: string, value: any, options: JSONAdapterSetOptions = {}) : Promise<boolean> {
+        const data = JSON.stringify(value);
+
         let milliseconds : number | undefined;
 
         if (options.milliseconds) {
@@ -24,32 +31,33 @@ export class JsonAdapter {
             milliseconds = options.seconds * 1000;
         }
 
-        /* istanbul ignore next */
+        let result : string | null;
+
         if (options.keepTTL) {
             if (options.ifExists) {
-                await this.client.set(key, JSON.stringify(value), 'KEEPTTL', 'XX');
+                result = await this.client.set(key, data, 'KEEPTTL', 'XX');
             } else if (options.ifNotExists) {
-                await this.client.set(key, JSON.stringify(value), 'KEEPTTL', 'NX');
+                result = await this.client.set(key, data, 'KEEPTTL', 'NX');
             } else {
-                await this.client.set(key, JSON.stringify(value), 'KEEPTTL');
+                result = await this.client.set(key, data, 'KEEPTTL');
             }
-
-            return;
-        }
-
-        if (milliseconds) {
+        } else if (milliseconds) {
             if (options.ifExists) {
-                await this.client.set(key, JSON.stringify(value), 'PX', milliseconds, 'XX');
+                result = await this.client.set(key, data, 'PX', milliseconds, 'XX');
             } else if (options.ifNotExists) {
-                await this.client.set(key, JSON.stringify(value), 'PX', milliseconds, 'NX');
+                result = await this.client.set(key, data, 'PX', milliseconds, 'NX');
             } else {
-                await this.client.set(key, JSON.stringify(value), 'PX', milliseconds);
+                result = await this.client.set(key, data, 'PX', milliseconds);
             }
-
-            return;
+        } else if (options.ifExists) {
+            result = await this.client.set(key, data, 'XX');
+        } else if (options.ifNotExists) {
+            result = await this.client.set(key, data, 'NX');
+        } else {
+            result = await this.client.set(key, data);
         }
 
-        await this.client.set(key, JSON.stringify(value));
+        return result === 'OK';
     }
 
     async get<T = any>(key: string) : Promise<undefined | T> {

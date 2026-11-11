@@ -6,8 +6,8 @@ function createTestCluster(): Cluster {
     const port = Number(process.env.REDIS_CLUSTER_PORT);
 
     return createCluster({
-        clusterNodes: [{ host, port }],
-        clusterOptions: {
+        nodes: [{ host, port }],
+        options: {
             // the node announces its container address; route it to the published port
             natMap: { [process.env.REDIS_CLUSTER_ANNOUNCED!]: { host, port } },
         },
@@ -18,6 +18,6 @@ function createTestCluster(): Cluster {
  * The two adapters the helpers accept: a single node and a cluster.
  */
 export const connections: [string, () => Client | Cluster][] = [
-    ['client', () => createClient({ connectionString: process.env.REDIS_CONNECTION_STRING })],
+    ['client', () => createClient({ url: process.env.REDIS_CONNECTION_STRING })],
     ['cluster', createTestCluster],
 ];
