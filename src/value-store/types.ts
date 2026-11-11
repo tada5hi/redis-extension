@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-export type JSONAdapterSetOptions = {
+export type ValueStoreSetOptions = {
     seconds?: number,
     milliseconds?: number,
     ifNotExists?: boolean, // (NX)
@@ -13,13 +13,13 @@ export type JSONAdapterSetOptions = {
     keepTTL?: boolean // (KEEPTTL)
 };
 
-export type JSONAdapterOptions<T = any> = {
+export type ValueStoreOptions<T = any> = {
     /**
      * Turn a value into the stored text. May resolve asynchronously.
      *
      * default: JSON.stringify
      */
-    stringify?: (value: T) => string | Promise<string>,
+    serialize?: (value: T) => string | Promise<string>,
     /**
      * Turn the stored text into a value, e.g. to validate it or to revive
      * Date values. May resolve asynchronously. Throw or reject to read the
@@ -27,5 +27,5 @@ export type JSONAdapterOptions<T = any> = {
      *
      * default: JSON.parse
      */
-    parse?: (text: string) => T | Promise<T>
+    deserialize?: (text: string) => T | Promise<T>
 };

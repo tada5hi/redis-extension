@@ -4,7 +4,7 @@
 |---|---|
 | `src/driver` | Connection creation (`createClient`, `createCluster`) and ioredis re-exports |
 | `src/key` | Redis key construction |
-| `src/json-adapter` | JSON storage behavior |
+| `src/value-store` | Typed value storage, JSON by default |
 | `src/score-board and src/watcher` | Scores and event watching |
 | `src/index.ts` | Public package exports |
 | `tsdown.config.mts` | JavaScript build configuration |

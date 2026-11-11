@@ -6,7 +6,7 @@
  */
 
 import type { Client, Cluster } from '../driver';
-import type { JSONAdapterOptions, JSONAdapterSetOptions } from './types';
+import type { ValueStoreOptions, ValueStoreSetOptions } from './types';
 
 /**
  * SET the value (ARGV[2]) with the SET arguments (ARGV[3..]), only while the
@@ -17,17 +17,17 @@ const REPLACE_SCRIPT = `if redis.call('GET', KEYS[1]) == ARGV[1] then
 end
 return false`;
 
-export class JsonAdapter<T = any> {
+export class ValueStore<T = any> {
     protected client : Client | Cluster;
 
-    protected stringify : (value: T) => string | Promise<string>;
+    protected serializer : (value: T) => string | Promise<string>;
 
-    protected parse : (text: string) => T | Promise<T>;
+    protected deserializer : (text: string) => T | Promise<T>;
 
-    constructor(client: Client | Cluster, options: JSONAdapterOptions<T> = {}) {
+    constructor(client: Client | Cluster, options: ValueStoreOptions<T> = {}) {
         this.client = client;
-        this.stringify = options.stringify || JSON.stringify;
-        this.parse = options.parse || JSON.parse;
+        this.serializer = options.serialize || JSON.stringify;
+        this.deserializer = options.deserialize || JSON.parse;
     }
 
     /**
@@ -35,7 +35,7 @@ export class JsonAdapter<T = any> {
      *
      * @returns true when the value was written, false when ifExists or ifNotExists skipped the write.
      */
-    async set(key: string, value: T, options: JSONAdapterSetOptions = {}) : Promise<boolean> {
+    async set(key: string, value: T, options: ValueStoreSetOptions = {}) : Promise<boolean> {
         const data = await this.serialize(key, value);
 
         return await this.client.call('SET', key, data, ...this.setArguments(options)) === 'OK';
@@ -45,7 +45,7 @@ export class JsonAdapter<T = any> {
      * Read a value.
      *
      * @returns the value, or undefined when the key does not exist, its value
-     * cannot be parsed, or parse rejects it.
+     * cannot be read: deserialize throws or rejects for it.
      */
     async get(key: string) : Promise<undefined | T> {
         return this.read(await this.client.get(key));
@@ -76,7 +76,7 @@ export class JsonAdapter<T = any> {
      */
     async setMany(
         entries: Record<string, T> | [string, T][],
-        options: JSONAdapterSetOptions = {},
+        options: ValueStoreSetOptions = {},
     ) : Promise<boolean[]> {
         const list = Array.isArray(entries) ? entries : Object.entries(entries);
 
@@ -91,7 +91,7 @@ export class JsonAdapter<T = any> {
     async getOrSet(
         key: string,
         factory: () => T | Promise<T>,
-        options: JSONAdapterSetOptions = {},
+        options: ValueStoreSetOptions = {},
     ) : Promise<T> {
         const current = await this.get(key);
 
@@ -144,7 +144,7 @@ export class JsonAdapter<T = any> {
 
     protected async serialize(key: string, value: T) : Promise<string> {
         // JSON.stringify returns undefined for undefined, functions and symbols
-        const data : unknown = await this.stringify(value);
+        const data : unknown = await this.serializer(value);
 
         if (typeof data !== 'string') {
             throw new TypeError(`The value for the key ${key} cannot be serialized.`);
@@ -156,7 +156,7 @@ export class JsonAdapter<T = any> {
     /**
      * The SET arguments after key and value.
      */
-    protected setArguments(options: JSONAdapterSetOptions) : (string | number)[] {
+    protected setArguments(options: ValueStoreSetOptions) : (string | number)[] {
         const output : (string | number)[] = [];
 
         let milliseconds : number | undefined;
@@ -189,7 +189,7 @@ export class JsonAdapter<T = any> {
         }
 
         try {
-            return await this.parse(entry);
+            return await this.deserializer(entry);
         } catch {
             return undefined;
         }

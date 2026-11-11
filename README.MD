@@ -5,7 +5,7 @@
 <h1 align="center">redis-extension</h1>
 
 <p align="center">
-    <b>Key watchers, JSON values, scoreboards and key paths for ioredis clients and clusters.</b><br>
+    <b>Key watchers, typed values, scoreboards and key paths for ioredis clients and clusters.</b><br>
     Stop wiring keyspace notifications, <code>JSON.parse</code> calls and sorted-set replies by hand:<br>
     pass your ioredis client to a helper and keep using it for everything else.
 </p>
@@ -39,9 +39,9 @@ redis-extension writes those patterns once, on top of the ioredis client you alr
 | Concern | With ioredis alone | With redis-extension |
 |---|---|---|
 | **React to key changes** | Set `notify-keyspace-events`, `duplicate()` a connection (a subscribed connection cannot run commands), `PSUBSCRIBE` the right channels, strip `__keyspace@0__:` from each channel name | `new Watcher(client, { pattern: 'user:*' })`, then `watcher.on('del', key => …)` |
-| **Store objects** | `JSON.stringify` on write, `JSON.parse` in a `try`/`catch` on read, the `SET` argument order for `PX`, `NX`, `XX` and `KEEPTTL`, and a read-compute-write for caching | `JsonAdapter.set(key, value, { seconds: 60, ifNotExists: true })`; `get()` resolves `undefined` for a missing or unparsable value; `getOrSet(key, factory)` caches |
+| **Store objects** | `JSON.stringify` on write, `JSON.parse` in a `try`/`catch` on read, the `SET` argument order for `PX`, `NX`, `XX` and `KEEPTTL`, and a read-compute-write for caching | `ValueStore.set(key, value, { seconds: 60, ifNotExists: true })`; `get()` resolves `undefined` for a missing or unparsable value; `getOrSet(key, factory)` caches |
 | **Rank members by score** | `ZADD`, then `ZREVRANGEBYSCORE … WITHSCORES LIMIT`, pair up the flat reply, a separate `ZCARD` for the total, and `ZREMRANGEBYSCORE` to expire old members | `ScoreBoard.add(id)`, `get({ limit: 10 })` returns `{ data: [{ id, score }], meta: { total } }`, and `prune(below)` drops stale members |
-| **Single node or cluster** | Helpers written against `Redis`, or a second code path for `Cluster` | `JsonAdapter` and `ScoreBoard` take either; `createClient()` adds reconnect defaults |
+| **Single node or cluster** | Helpers written against `Redis`, or a second code path for `Cluster` | `ValueStore` and `ScoreBoard` take either; `createClient()` adds reconnect defaults |
 | **Compound keys** | String concatenation, and a parser that has to agree with it | `buildKeyPath({ prefix, key, suffix })` and `parseKeyPath()`; `escapeKey()` for glob patterns |
 
 The same delete listener, both ways:
@@ -75,7 +75,7 @@ A `Watcher` turns Redis keyspace notifications into Node.js events:
 - [Usage](#usage)
   - [Connections](#connections)
   - [Watcher](#watcher)
-  - [JsonAdapter](#jsonadapter)
+  - [ValueStore](#valuestore)
   - [ScoreBoard](#scoreboard)
   - [Key paths](#key-paths)
 - [Options](#options)
@@ -98,21 +98,21 @@ The package ships ES module and CommonJS builds with type declarations. It requi
 Create a client with the package defaults and hand it to the helpers. How your application shares it, in a module variable or a dependency injection container, is up to you:
 
 ```typescript
-import { JsonAdapter, createClient } from 'redis-extension';
+import { ValueStore, createClient } from 'redis-extension';
 
 const client = createClient({
     url: 'redis://127.0.0.1:6379',
 });
 
-const adapter = new JsonAdapter(client);
-await adapter.set('greeting', { text: 'hello' });
+const store = new ValueStore(client);
+await store.set('greeting', { text: 'hello' });
 ```
 
 - `createClient(input?)` opens a new ioredis `Redis` connection on every call. Its `options` go to ioredis on top of the defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default, except that a database in the `url` path (`redis://host:6379/2`) wins over `options.db`. Without a `url` it connects to `localhost:6379`.
 - `createCluster(input)` opens a new ioredis `Cluster` from the startup `nodes`. Its `options` are passed to ioredis as they are; the client defaults do not apply.
 - Close a connection with `disconnect()` or `quit()` when you no longer need it.
 
-`Watcher`, `JsonAdapter` and `ScoreBoard` accept a client or a cluster:
+`Watcher`, `ValueStore` and `ScoreBoard` accept a client or a cluster:
 
 ```typescript
 import { ScoreBoard, createCluster } from 'redis-extension';
@@ -214,46 +214,46 @@ const watcher = new Watcher(client, {
 });
 ```
 
-### JsonAdapter
+### ValueStore
 
-Store values as JSON and read them back as objects:
+Store typed values under keys, as JSON by default, and read them back:
 
 ```typescript
-import { JsonAdapter, createClient } from 'redis-extension';
+import { ValueStore, createClient } from 'redis-extension';
 
 type User = { name: string, roles: string[] };
 
 const client = createClient();
-const adapter = new JsonAdapter<User>(client);
+const store = new ValueStore<User>(client);
 
-await adapter.set('user:51f3509d', { name: 'admin', roles: ['owner'] }, {
+await store.set('user:51f3509d', { name: 'admin', roles: ['owner'] }, {
     seconds: 3600,
 });
 
-const user = await adapter.get('user:51f3509d');
+const user = await store.get('user:51f3509d');
 // { name: 'admin', roles: ['owner'] }
 
-await adapter.drop('user:51f3509d'); // true
+await store.drop('user:51f3509d'); // true
 ```
 
-- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value `stringify` turns into no string, such as `undefined` or a function under `JSON.stringify`. The [set options](#jsonadapter-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
-- `get(key)` resolves the value as the adapter's type `T`, or `undefined` when the key does not exist or `parse` throws or rejects for its value. It rejects when the command fails, for example on a connection error or a key of another type.
+- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value `serialize` turns into no string, such as `undefined` or a function under `JSON.stringify`. The [set options](#valuestore-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
+- `get(key)` resolves the value as the store's type `T`, or `undefined` when the key does not exist or `deserialize` throws or rejects for its value. It rejects when the command fails, for example on a connection error or a key of another type.
 - `getMany(keys)` resolves the values in the order of the keys, with `undefined` where `get()` would resolve `undefined`, and rejects where `get()` rejects, such as for a key of another type. It sends one `GET` per key, all at once, so the keys can live on different cluster nodes.
 - `setMany(entries, options?)` writes a record or a list of `[key, value]` pairs concurrently with the same options and resolves one `set()` result per entry. The writes are not atomic.
 - `getOrSet(key, factory, options?)` resolves the stored value, or calls `factory`, stores its result with `options` and resolves it.
 - `drop(key)` deletes the key and resolves `true` when a key was removed.
 
-Cache a computed value, and check what comes back with `parse`. The type parameter alone is not checked at runtime:
+Cache a computed value, and check what comes back with `deserialize`. The type parameter alone is not checked at runtime:
 
 ```typescript
-import { JsonAdapter, createClient } from 'redis-extension';
+import { ValueStore, createClient } from 'redis-extension';
 
 type Report = { total: number };
 declare function buildReport(): Promise<Report>;
 
 const client = createClient();
-const reports = new JsonAdapter<Report>(client, {
-    parse: (text) => {
+const reports = new ValueStore<Report>(client, {
+    deserialize: (text) => {
         const value = JSON.parse(text);
 
         if (typeof value?.total !== 'number') {
@@ -269,16 +269,16 @@ const report = await reports.getOrSet('report:today', () => buildReport(), {
 });
 ```
 
-A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value. With `ifNotExists`, an unreadable value is still replaced, unless another caller stored a readable one first.
+A value that `deserialize` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value. With `ifNotExists`, an unreadable value is still replaced, unless another caller stored a readable one first.
 
-Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass your own `stringify`, `parse` or both to keep them. Either may return a Promise, for example to decrypt or to run an async schema check:
+Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass your own `serialize`, `deserialize` or both to keep them, or to store another format such as superjson or encrypted text. Either may return a Promise, for example to decrypt or to run an async schema check:
 
 ```typescript
-import { JsonAdapter, createClient } from 'redis-extension';
+import { ValueStore, createClient } from 'redis-extension';
 
 const client = createClient();
-const events = new JsonAdapter<{ at: Date }>(client, {
-    parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
+const events = new ValueStore<{ at: Date }>(client, {
+    deserialize: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
 });
 ```
 
@@ -375,14 +375,14 @@ escapeKey('report[2024]*');
 | `pattern` | `string \| string[]` | every key | Glob pattern(s) for the keys to watch, as in [`PSUBSCRIBE`](https://redis.io/docs/latest/commands/psubscribe/) |
 | `notifyKeyspaceEvents` | `string \| false` | `'KA'` | Written to the server's `notify-keyspace-events` setting by `start()`. It must contain `K` (keyspace channels) and the event classes to watch, such as `Kg$x`; without `K`, no event is emitted. `false` leaves the server setting alone, which then needs the same flags |
 
-### JsonAdapter options
+### ValueStore options
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `stringify` | `(value: T) => string \| Promise<string>` | `JSON.stringify` | Turns a value into the stored text; a result that is no string makes `set()` reject with a `TypeError` |
-| `parse` | `(text: string) => T \| Promise<T>` | `JSON.parse` | Turns the stored text into a value, e.g. to validate it or revive `Date` values; a throw or rejection reads as `undefined` |
+| `serialize` | `(value: T) => string \| Promise<string>` | `JSON.stringify` | Turns a value into the stored text; a result that is no string makes `set()` reject with a `TypeError` |
+| `deserialize` | `(text: string) => T \| Promise<T>` | `JSON.parse` | Turns the stored text into a value, e.g. to validate it or revive `Date` values; a throw or rejection reads as `undefined` |
 
-### JsonAdapter set options
+### ValueStore set options
 
 | Option | Type | Default | Redis | Description |
 |---|---|---|---|---|
@@ -415,13 +415,13 @@ escapeKey('report[2024]*');
 | `Client`, `Cluster` | class | The ioredis `Redis` and `Cluster` classes |
 | `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys, on a client or a cluster |
 | `WatcherEvent` | enum | Event names a `Watcher` emits, such as `SET = 'set'` and `EXPIRED = 'expired'` |
-| `JsonAdapter` | class | `get`, `set`, `getMany`, `setMany`, `getOrSet` and `drop` of JSON values, on a client or a cluster |
+| `ValueStore` | class | `get`, `set`, `getMany`, `setMany`, `getOrSet` and `drop` of typed values, JSON by default, on a client or a cluster |
 | `ScoreBoard` | class | `add`, `get`, `score`, `rank`, `increment`, `prune`, `drop` and `clear` on a sorted set, on a client or a cluster |
 | `buildKeyPath`, `parseKeyPath` | function | Join and split `prefix#p#key#s#suffix` |
 | `escapeKey` | function | Escape glob characters in a key |
 | `KeyPathSeparator` | enum | `PREFIX = '#p#'`, `SUFFIX = '#s#'` |
 | `ClientInput`, `ClusterInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
-| `WatcherOptions`, `JSONAdapterOptions`, `JSONAdapterSetOptions`, `KeyPath` | type | Options and values of the helpers above |
+| `WatcherOptions`, `ValueStoreOptions`, `ValueStoreSetOptions`, `KeyPath` | type | Options and values of the helpers above |
 | `ScoreBoardOptions`, `ScoreBoardOptionsInput`, `ScoreBoardGetOptions`, `ScoreBoardGetOutput`, `ScoreBoardItem` | type | ScoreBoard options and results |
 
 ## Notes
@@ -431,7 +431,7 @@ escapeKey('report[2024]*');
 - **`expired` is not `expire`.** `expire` fires when a TTL is set (including `SET … PX`); `expired` fires when Redis removes the key. Redis removes expired keys lazily or in a background cycle, so `expired` can arrive after the TTL has run out.
 - **Listen for `error`.** The watcher re-emits connection errors as `error`; without a listener, Node.js throws them.
 - **A cluster watcher covers the masters known at `start()`.** Restart the watcher after adding masters to the cluster.
-- **`JsonAdapter.get()` does not tell a missing key from invalid JSON.** Both resolve `undefined`; read the raw value with the client when you need to know which.
+- **`ValueStore.get()` does not tell a missing key from an unreadable value.** Both resolve `undefined`; read the raw value with the client when you need to know which.
 - **The default retry strategy never gives up, but queued commands do.** The client keeps reconnecting, while ioredis rejects a queued command after `maxRetriesPerRequest` reconnection attempts (20 by default). Set `maxRetriesPerRequest: null` in `options` to let commands wait until the connection is back, or pass your own `retryStrategy` (return `null` to stop reconnecting).
 
 ## License

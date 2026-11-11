@@ -7,6 +7,6 @@
 
 export * from './watcher';
 export * from './driver';
-export * from './json-adapter';
+export * from './value-store';
 export * from './key';
 export * from './score-board';

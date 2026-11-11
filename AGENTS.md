@@ -1,6 +1,6 @@
 # redis-extension: Agent Guide
 
-A Redis extension with connection configuration, key helpers, JSON adapters, scoreboards and watchers.
+A Redis extension with connection configuration, key helpers, value stores, scoreboards and watchers.
 
 ## Quick Reference
 
