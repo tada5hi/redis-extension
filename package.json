@@ -31,13 +31,15 @@
     "license": "MIT",
     "keywords": [
         "redis",
-        "store",
+        "ioredis",
+        "redis-cluster",
+        "keyspace-notifications",
+        "watcher",
         "cache",
-        "tracker",
-        "scheduler",
-        "typescript",
-        "cluster",
-        "client"
+        "json",
+        "leaderboard",
+        "sorted-set",
+        "typescript"
     ],
     "repository": {
         "type": "git",
