@@ -66,4 +66,15 @@ describe.each(connections)('json-adapter (%s)', (_name, connect) => {
 
         await client.del('a-set');
     });
+
+    it('should resolve whether the value was written', async () => {
+        const adapter = new JsonAdapter(client);
+
+        expect(await adapter.set('written', 1)).toEqual(true);
+        expect(await adapter.set('written', 2, { ifNotExists: true })).toEqual(false);
+        expect(await adapter.set('not-written', 3, { ifExists: true })).toEqual(false);
+        expect(await adapter.get('written')).toEqual(1);
+
+        await adapter.drop('written');
+    });
 });
