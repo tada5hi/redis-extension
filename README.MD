@@ -163,11 +163,11 @@ await watcher.stop();
 ```
 
 - `start()` runs `CONFIG SET notify-keyspace-events KA` on the server (see [`notifyKeyspaceEvents`](#watcher-options) to skip it) and pattern-subscribes to `__keyspace@<db>__:<pattern>` for every pattern, where `<db>` is the client's database. Calls while the watcher starts or runs share that start.
-- All watchers of one client share one subscriber connection, opened with `client.duplicate()` by the first `start()` and closed by the last `stop()`.
+- Each watcher opens its own subscriber connection with `client.duplicate()` on `start()`, one per master on a cluster, and closes it on `stop()`. To watch several patterns over one connection, pass them as an array to one watcher.
 - The event name is the Redis notification: `set`, `del`, `expire` (a TTL was set), `expired` (the key was removed because its TTL ran out), `rename_from`, `hset`, `lpush`, `zadd` and so on. The listener receives the key. A `SET … PX 500` emits `set` and `expire`, then `expired` 500 ms later.
 - `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key of the client's database. A change emits once per pattern it matches, so overlapping patterns emit it more than once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally. With an ioredis `keyPrefix` on the client, patterns match keys below that prefix, and listeners receive keys without it, as you pass them to the client.
-- Errors of the subscriber connection are re-emitted as `error` on every watcher that uses it.
-- `stop()` unsubscribes the watcher's patterns. The client you passed in stays open.
+- Errors of the subscriber connection are re-emitted as `error` on the watcher.
+- `stop()` unsubscribes the watcher's patterns and closes its subscriber connection. The client you passed in stays open.
 - On a cluster, each master publishes the notifications of its own keys, so `start()` waits until the cluster is ready, through reconnect errors, and subscribes on every master; it rejects when the cluster is closed before it gets ready. Subscriber connections to cluster nodes reconnect on their own and restore their subscriptions. Masters that join later, for example after resharding, are watched from the next `start()` on.
 
 A watcher is also an async disposable, so `await using` stops it at the end of the block:
