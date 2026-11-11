@@ -3,7 +3,7 @@ import { createClient } from '../../../src';
 
 describe('src/driver', () => {
     it('should apply the default client options', async () => {
-        const client = createClient({ connectionString: process.env.REDIS_CONNECTION_STRING });
+        const client = createClient({ url: process.env.REDIS_CONNECTION_STRING });
 
         try {
             expect(client.options.enableReadyCheck).toEqual(true);
@@ -18,7 +18,7 @@ describe('src/driver', () => {
 
     it('should let options override the defaults', () => {
         const client = createClient({
-            connectionString: process.env.REDIS_CONNECTION_STRING,
+            url: process.env.REDIS_CONNECTION_STRING,
             options: { enableReadyCheck: false, lazyConnect: true },
         });
 

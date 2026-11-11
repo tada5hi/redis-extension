@@ -7,7 +7,7 @@ describe('watcher', () => {
     let client: Client;
 
     beforeAll(() => {
-        client = createClient({ connectionString: process.env.REDIS_CONNECTION_STRING });
+        client = createClient({ url: process.env.REDIS_CONNECTION_STRING });
     });
 
     afterAll(() => {
@@ -103,4 +103,5 @@ describe('watcher', () => {
 
         expect(await countClients()).toEqual(before);
     });
+
 });
