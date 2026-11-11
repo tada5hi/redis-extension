@@ -104,4 +104,20 @@ describe('watcher', () => {
         expect(await countClients()).toEqual(before);
     });
 
+    it('should apply the client keyPrefix to patterns and keys', async () => {
+        const prefixed = createClient({ url: process.env.REDIS_CONNECTION_STRING, options: { keyPrefix: 'app:' } });
+        const watcher = new Watcher(prefixed, { pattern: 'prefixed:*' });
+
+        try {
+            await watcher.start();
+            const event = once(watcher, 'set');
+            await prefixed.set('prefixed:1', 'bar');
+            const [key] = await event;
+            expect(key).toEqual('prefixed:1');
+        } finally {
+            await watcher.stop();
+            await prefixed.del('prefixed:1');
+            prefixed.disconnect();
+        }
+    });
 });

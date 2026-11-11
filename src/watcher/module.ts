@@ -7,6 +7,7 @@
 
 import { EventEmitter } from 'node:events';
 import type { Redis } from 'ioredis';
+import { escapeKey } from '../key';
 import type { WatcherEvent } from './consants';
 import type { WatcherOptions } from './types';
 
@@ -16,6 +17,8 @@ export class Watcher extends EventEmitter {
     protected subscriberClient : Redis | undefined;
 
     protected subscribePatterns: string[];
+
+    protected keyPrefix: string;
 
     protected options : WatcherOptions;
 
@@ -30,21 +33,22 @@ export class Watcher extends EventEmitter {
         this.client = client;
         this.options = options;
 
+        // ioredis applies keyPrefix to commands, but not to pattern subscriptions
+        this.keyPrefix = client.options.keyPrefix || '';
+
         let patterns : string[];
 
         if (this.options.pattern) {
-            if (Array.isArray(this.options.pattern)) {
-                patterns = this.options.pattern.map(
-                    (pattern) => `__key*__:${pattern}`,
-                );
-            } else {
-                patterns = [`__key*__:${this.options.pattern}`];
-            }
+            patterns = Array.isArray(this.options.pattern) ?
+                this.options.pattern :
+                [this.options.pattern];
         } else {
-            patterns = ['__key*__:*'];
+            patterns = ['*'];
         }
 
-        this.subscribePatterns = patterns;
+        const prefix = escapeKey(this.keyPrefix);
+
+        this.subscribePatterns = patterns.map((pattern) => `__key*__:${prefix}${pattern}`);
     }
 
     //--------------------------------------------------------------------
@@ -88,9 +92,13 @@ export class Watcher extends EventEmitter {
                 return;
             }
 
-            const key = _channel.split('__:').pop();
+            let key = _channel.substring(_channel.indexOf('__:') + 3);
 
-            if (key && key.length > 0) {
+            if (this.keyPrefix && key.startsWith(this.keyPrefix)) {
+                key = key.substring(this.keyPrefix.length);
+            }
+
+            if (key.length > 0) {
                 this.emit(event, key);
             }
         });
