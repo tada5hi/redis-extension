@@ -202,20 +202,20 @@ import { JsonAdapter, createClient } from 'redis-extension';
 
 type User = { name: string, roles: string[] };
 
-const adapter = new JsonAdapter(createClient());
+const adapter = new JsonAdapter<User>(createClient());
 
 await adapter.set('user:51f3509d', { name: 'admin', roles: ['owner'] }, {
     seconds: 3600,
 });
 
-const user = await adapter.get<User>('user:51f3509d');
+const user = await adapter.get('user:51f3509d');
 // { name: 'admin', roles: ['owner'] }
 
 await adapter.drop('user:51f3509d'); // true
 ```
 
-- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write. The [set options](#jsonadapter-set-options) map to `PX`, `XX`, `NX` and `KEEPTTL`.
-- `get(key)` resolves the value, or `undefined` when the key does not exist, its value cannot be deserialized, or `parse` rejects it. It rejects when the command fails, for example on a connection error or a key of another type.
+- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value the serializer turns into no string, such as `undefined` or a function. The [set options](#jsonadapter-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
+- `get(key)` resolves the value as the adapter's type `T`, or `undefined` when the key does not exist, its value cannot be deserialized, or `parse` rejects it. It rejects when the command fails, for example on a connection error or a key of another type.
 - `getMany(keys)` resolves the values in the order of the keys, with `undefined` where `get()` would resolve `undefined`. It sends one `MGET` on a client and one `GET` per key on a cluster, whose keys can live on different nodes.
 - `setMany(entries, options?)` writes a record or a list of `[key, value]` pairs concurrently with the same options and resolves one `set()` result per entry. The writes are not atomic.
 - `getOrSet(key, factory, options?)` resolves the stored value, or calls `factory`, stores its result with `options` and resolves it.
@@ -244,7 +244,7 @@ const report = await reports.getOrSet('report:today', () => buildReport(), {
 });
 ```
 
-A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory; the last write wins.
+A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value.
 
 Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass a `serializer` with your own `stringify` and `parse` to keep them:
 
