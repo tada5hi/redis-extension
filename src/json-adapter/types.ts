@@ -12,3 +12,22 @@ export type JSONAdapterSetOptions = {
     ifExists?: boolean // (XX)
     keepTTL?: boolean // (KEEPTTL)
 };
+
+export type JSONAdapterSerializer = {
+    stringify: (value: any) => string,
+    parse: (text: string) => unknown
+};
+
+export type JSONAdapterOptions<T = any> = {
+    /**
+     * Validate or transform a deserialized value. Throw to reject it;
+     * a rejected value reads as undefined.
+     */
+    parse?: (value: unknown) => T,
+    /**
+     * Replace JSON.stringify and JSON.parse, e.g. to keep Date values.
+     *
+     * default: JSON
+     */
+    serializer?: JSONAdapterSerializer
+};
