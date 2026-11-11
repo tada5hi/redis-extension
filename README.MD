@@ -192,7 +192,8 @@ const client = createClient();
 ```typescript
 import { Watcher, WatcherEvent, createClient } from 'redis-extension';
 
-const watcher = new Watcher(createClient(), { pattern: 'session:*' });
+const client = createClient();
+const watcher = new Watcher(client, { pattern: 'session:*' });
 
 watcher.on(WatcherEvent.EXPIRED, (key) => {
     console.log('session ended', key);
@@ -206,7 +207,8 @@ On a server where `CONFIG` is blocked, as on many managed Redis services, enable
 ```typescript
 import { Watcher, createClient } from 'redis-extension';
 
-const watcher = new Watcher(createClient(), {
+const client = createClient();
+const watcher = new Watcher(client, {
     pattern: 'session:*',
     notifyKeyspaceEvents: false,
 });
@@ -221,7 +223,8 @@ import { JsonAdapter, createClient } from 'redis-extension';
 
 type User = { name: string, roles: string[] };
 
-const adapter = new JsonAdapter<User>(createClient());
+const client = createClient();
+const adapter = new JsonAdapter<User>(client);
 
 await adapter.set('user:51f3509d', { name: 'admin', roles: ['owner'] }, {
     seconds: 3600,
@@ -248,7 +251,8 @@ import { JsonAdapter, createClient } from 'redis-extension';
 type Report = { total: number };
 declare function buildReport(): Promise<Report>;
 
-const reports = new JsonAdapter<Report>(createClient(), {
+const client = createClient();
+const reports = new JsonAdapter<Report>(client, {
     parse: (text) => {
         const value = JSON.parse(text);
 
@@ -272,7 +276,8 @@ Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or erro
 ```typescript
 import { JsonAdapter, createClient } from 'redis-extension';
 
-const events = new JsonAdapter<{ at: Date }>(createClient(), {
+const client = createClient();
+const events = new JsonAdapter<{ at: Date }>(client, {
     parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
 });
 ```
@@ -284,7 +289,8 @@ Keep members ordered by a score, for example who was active most recently:
 ```typescript
 import { ScoreBoard, createClient } from 'redis-extension';
 
-const scoreBoard = new ScoreBoard(createClient(), { key: 'users-online' });
+const client = createClient();
+const scoreBoard = new ScoreBoard(client, { key: 'users-online' });
 
 await scoreBoard.add('user:1');
 await scoreBoard.add('user:2', Date.now() + 1000);
@@ -310,7 +316,8 @@ Counting works the same way, with `increment()` instead of timestamps:
 ```typescript
 import { ScoreBoard, createClient } from 'redis-extension';
 
-const leaderboard = new ScoreBoard(createClient(), { key: 'leaderboard' });
+const client = createClient();
+const leaderboard = new ScoreBoard(client, { key: 'leaderboard' });
 
 await leaderboard.increment('alice', 10); // 10
 await leaderboard.increment('alice'); // 11
