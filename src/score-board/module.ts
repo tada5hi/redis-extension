@@ -14,6 +14,22 @@ import type {
     ScoreBoardOptionsInput,
 } from './types';
 
+/**
+ * Read a score reply: a number (RESP3), a numeric string (RESP2), or
+ * 'inf' / '-inf', which Number() does not parse.
+ */
+function toScore(value: unknown) : number {
+    if (value === 'inf' || value === '+inf') {
+        return Infinity;
+    }
+
+    if (value === '-inf') {
+        return -Infinity;
+    }
+
+    return Number(value);
+}
+
 export class ScoreBoard {
     protected client: Client | Cluster;
 
@@ -46,9 +62,16 @@ export class ScoreBoard {
 
         transaction.zcard(key);
 
-        const [[rangeError, data], [totalError, total]] = await transaction.exec() as [
-            [Error | null, string[]],
-            [Error | null, number],
+        const results = await transaction.exec();
+
+        if (!results) {
+            // EXEC returns null when a WATCH on the same connection aborts the transaction
+            throw new Error(`Reading the score board ${key} was aborted by a WATCH on the client.`);
+        }
+
+        const [[rangeError, data], [totalError, total]] = results as [
+            [Error | null, unknown[]],
+            [Error | null, unknown],
         ];
 
         if (rangeError) {
@@ -59,23 +82,27 @@ export class ScoreBoard {
             throw totalError;
         }
 
+        // a flat [member, score, ...] list, or [member, score] pairs with replyMapping 'resp3'
+        const flat = data.flat();
         const items : ScoreBoardItem[] = [];
 
-        for (let i = 0; i < data.length; i += 2) {
+        for (let i = 0; i < flat.length; i += 2) {
             items.push({
-                id: data[i]!,
-                score: Number(data[i + 1]),
+                id: String(flat[i]),
+                score: toScore(flat[i + 1]),
             });
         }
 
-        return {
-            data: items,
-            meta: {
-                total: total || 0,
-                ...(options.limit ? { limit: options.limit } : {}),
-                ...(options.offset ? { offset: options.offset } : {}),
-            },
-        };
+        const meta : ScoreBoardGetOutput['meta'] = { total: Number(total) };
+
+        if (typeof options.limit !== 'undefined') {
+            meta.limit = options.limit;
+            meta.offset = offset;
+        } else if (typeof options.offset !== 'undefined') {
+            meta.offset = options.offset;
+        }
+
+        return { data: items, meta };
     }
 
     async clear() {
@@ -118,7 +145,7 @@ export class ScoreBoard {
      * @returns the number of removed members
      */
     async prune(below: number) : Promise<number> {
-        return this.client.zremrangebyscore(this.options.key, '-inf', `(${below}`);
+        return Number(await this.client.zremrangebyscore(this.options.key, '-inf', `(${below}`));
     }
 
     /**
@@ -129,7 +156,7 @@ export class ScoreBoard {
     async score(id: string) : Promise<number | undefined> {
         const score = await this.client.zscore(this.options.key, id);
 
-        return score === null ? undefined : Number(score);
+        return score === null ? undefined : toScore(score);
     }
 
     /**
@@ -144,7 +171,7 @@ export class ScoreBoard {
             await this.client.zrevrank(this.options.key, id) :
             await this.client.zrank(this.options.key, id);
 
-        return rank === null ? undefined : rank;
+        return rank === null ? undefined : Number(rank);
     }
 
     /**
@@ -153,6 +180,6 @@ export class ScoreBoard {
      * @returns the new score
      */
     async increment(id: string, by = 1) : Promise<number> {
-        return Number(await this.client.zincrby(this.options.key, by, id));
+        return toScore(await this.client.zincrby(this.options.key, by, id));
     }
 }
