@@ -11,19 +11,21 @@ export function buildConfigWithDefaults(
     input?: ConfigInput,
 ) {
     input = input || {};
-    input.options = {
-        enableReadyCheck: true,
-        retryStrategy(times: number): number | void | null {
-            /* istanbul ignore next */
-            return times === 3 ? null : Math.min(times * 50, 2000);
-        },
-        reconnectOnError(error: Error): boolean {
-            /* istanbul ignore next */
-            return error.message.includes('ECONNRESET');
-        },
-    };
 
-    return buildConfig(input);
+    return buildConfig({
+        ...input,
+        options: {
+            enableReadyCheck: true,
+            retryStrategy(times: number): number {
+                return Math.min(times * 50, 2000);
+            },
+            reconnectOnError(error: Error): boolean {
+                /* istanbul ignore next */
+                return error.message.includes('ECONNRESET');
+            },
+            ...input.options,
+        },
+    });
 }
 
 export function buildConfig(input?: ConfigInput) : Config {

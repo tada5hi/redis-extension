@@ -67,4 +67,27 @@ describe('src/config', () => {
         expect(config.options).toBeDefined();
         expect(config.options.role).toBeUndefined();
     });
+
+    it('should merge the defaults into a set config', () => {
+        setConfig({ options: { role: 'master' } }, 'merged');
+
+        const config = useConfig('merged');
+        expect(config.options.role).toEqual('master');
+        expect(config.options.enableReadyCheck).toEqual(true);
+        expect(config.options.retryStrategy).toBeDefined();
+
+        unsetConfig('merged');
+    });
+
+    it('should let options override the defaults', () => {
+        const config = buildConfigWithDefaults({ options: { enableReadyCheck: false } });
+        expect(config.options.enableReadyCheck).toEqual(false);
+    });
+
+    it('should keep retrying with a capped backoff', () => {
+        const { retryStrategy } = buildConfigWithDefaults().options;
+        expect(retryStrategy!(1)).toEqual(50);
+        expect(retryStrategy!(3)).toEqual(150);
+        expect(retryStrategy!(100)).toEqual(2000);
+    });
 });
