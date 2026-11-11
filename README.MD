@@ -214,8 +214,8 @@ const user = await adapter.get('user:51f3509d');
 await adapter.drop('user:51f3509d'); // true
 ```
 
-- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value the serializer turns into no string, such as `undefined` or a function. The [set options](#jsonadapter-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
-- `get(key)` resolves the value as the adapter's type `T`, or `undefined` when the key does not exist, its value cannot be deserialized, or `parse` rejects it. It rejects when the command fails, for example on a connection error or a key of another type.
+- `set(key, value, options?)` writes the serialized value with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write, and rejects with a `TypeError` for a value `stringify` turns into no string, such as `undefined` or a function under `JSON.stringify`. The [set options](#jsonadapter-set-options) map to `PX` (rounded to whole milliseconds), `XX`, `NX` and `KEEPTTL`.
+- `get(key)` resolves the value as the adapter's type `T`, or `undefined` when the key does not exist or `parse` throws or rejects for its value. It rejects when the command fails, for example on a connection error or a key of another type.
 - `getMany(keys)` resolves the values in the order of the keys, with `undefined` where `get()` would resolve `undefined`. It sends one `MGET` on a client and one `GET` per key on a cluster, whose keys can live on different nodes.
 - `setMany(entries, options?)` writes a record or a list of `[key, value]` pairs concurrently with the same options and resolves one `set()` result per entry. The writes are not atomic.
 - `getOrSet(key, factory, options?)` resolves the stored value, or calls `factory`, stores its result with `options` and resolves it.
@@ -230,12 +230,14 @@ type Report = { total: number };
 declare function buildReport(): Promise<Report>;
 
 const reports = new JsonAdapter<Report>(createClient(), {
-    parse: (value) => {
-        if (typeof (value as Report)?.total !== 'number') {
+    parse: (text) => {
+        const value = JSON.parse(text);
+
+        if (typeof value?.total !== 'number') {
             throw new TypeError('not a report');
         }
 
-        return value as Report;
+        return value;
     },
 });
 
@@ -246,16 +248,13 @@ const report = await reports.getOrSet('report:today', () => buildReport(), {
 
 A value that `parse` rejects reads as `undefined`, so `getOrSet` replaces it. Two callers that miss at the same time both run the factory and the last write wins; pass `ifNotExists: true` to keep the first write, and both callers then resolve the stored value.
 
-Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass a `serializer` with your own `stringify` and `parse` to keep them:
+Plain JSON turns `Date`, `Map` and `BigInt` values into strings, objects or errors. Pass your own `stringify`, `parse` or both to keep them. Either may return a Promise, for example to decrypt or to run an async schema check:
 
 ```typescript
 import { JsonAdapter, createClient } from 'redis-extension';
 
 const events = new JsonAdapter<{ at: Date }>(createClient(), {
-    serializer: {
-        stringify: (value) => JSON.stringify(value),
-        parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
-    },
+    parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
 });
 ```
 
@@ -337,8 +336,8 @@ escapeKey('report[2024]*');
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `parse` | `(value: unknown) => T` | none | Validates or transforms a deserialized value; throw to reject it, which reads as `undefined` |
-| `serializer` | `{ stringify, parse }` | `JSON` | Replaces `JSON.stringify` and `JSON.parse` |
+| `stringify` | `(value: T) => string \| Promise<string>` | `JSON.stringify` | Turns a value into the stored text; a result that is no string makes `set()` reject with a `TypeError` |
+| `parse` | `(text: string) => T \| Promise<T>` | `JSON.parse` | Turns the stored text into a value, e.g. to validate it or revive `Date` values; a throw or rejection reads as `undefined` |
 
 ### JsonAdapter set options
 
@@ -379,7 +378,7 @@ escapeKey('report[2024]*');
 | `escapeKey` | function | Escape glob characters in a key |
 | `KeyPathSeparator` | enum | `PREFIX = '#p#'`, `SUFFIX = '#s#'` |
 | `ClientInput`, `ClusterInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
-| `WatcherOptions`, `JSONAdapterOptions`, `JSONAdapterSetOptions`, `JSONAdapterSerializer`, `KeyPath` | type | Options and values of the helpers above |
+| `WatcherOptions`, `JSONAdapterOptions`, `JSONAdapterSetOptions`, `KeyPath` | type | Options and values of the helpers above |
 | `ScoreBoardOptions`, `ScoreBoardOptionsInput`, `ScoreBoardGetOptions`, `ScoreBoardGetOutput`, `ScoreBoardItem` | type | ScoreBoard options and results |
 
 ## Notes
