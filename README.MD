@@ -66,7 +66,7 @@ await watcher.start();
 A `Watcher` turns Redis keyspace notifications into Node.js events:
 
 <p align="center">
-    <img src="./.github/assets/watcher.svg" alt="watcher.start() sets notify-keyspace-events to KA on the Redis server and opens a duplicate connection that pattern-subscribes to __key*__:user:*. When the client runs SET user:1 with PX 300, Redis publishes set and expire on the channel __keyspace@0__:user:1, and expired 300 ms later. The Watcher emits each one as an event with the key user:1; keyevent channels are filtered out." width="100%" />
+    <img src="./.github/assets/watcher.svg" alt="watcher.start() sets notify-keyspace-events to KA on the Redis server and opens a duplicate connection that pattern-subscribes to __keyspace@0__:user:*, the keyspace channel of the client database. When the client runs SET user:1 with PX 300, Redis publishes set and expire on the channel __keyspace@0__:user:1, and expired 300 ms later. The Watcher emits each one as an event with the key user:1." width="100%" />
 </p>
 
 **Table of Contents**
@@ -108,7 +108,7 @@ const adapter = new JsonAdapter(client);
 await adapter.set('greeting', { text: 'hello' });
 ```
 
-- `createClient(input?)` opens a new ioredis `Redis` connection on every call. Its `options` go to ioredis on top of the defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default. Without a `url` it connects to `localhost:6379`.
+- `createClient(input?)` opens a new ioredis `Redis` connection on every call. Its `options` go to ioredis on top of the defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default, except that a database in the `url` path (`redis://host:6379/2`) wins over `options.db`. Without a `url` it connects to `localhost:6379`.
 - `createCluster(input)` opens a new ioredis `Cluster` from the startup `nodes`. Its `options` are passed to ioredis as they are; the client defaults do not apply.
 - Close a connection with `disconnect()` or `quit()` when you no longer need it.
 
@@ -162,9 +162,9 @@ await client.del('user:1');
 await watcher.stop();
 ```
 
-- `start()` runs `CONFIG SET notify-keyspace-events KA` on the server (see [`notifyKeyspaceEvents`](#watcher-options) to skip it), opens a duplicate connection with `client.duplicate()` and pattern-subscribes it to `__key*__:<pattern>` for every pattern. Calling it again while the watcher runs does nothing.
+- `start()` runs `CONFIG SET notify-keyspace-events KA` on the server (see [`notifyKeyspaceEvents`](#watcher-options) to skip it), opens a duplicate connection with `client.duplicate()` and pattern-subscribes it to `__keyspace@<db>__:<pattern>` for every pattern, where `<db>` is the client's database. Calls while the watcher starts or runs share that start.
 - The event name is the Redis notification: `set`, `del`, `expire` (a TTL was set), `expired` (the key was removed because its TTL ran out), `rename_from`, `hset`, `lpush`, `zadd` and so on. The listener receives the key. A `SET … PX 500` emits `set` and `expire`, then `expired` 500 ms later.
-- `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key. Only keyspace channels emit; keyevent channels are filtered out, so each change emits once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally. With an ioredis `keyPrefix` on the client, patterns match keys below that prefix, and listeners receive keys without it, as you pass them to the client.
+- `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key of the client's database. A change emits once per pattern it matches, so overlapping patterns emit it more than once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally. With an ioredis `keyPrefix` on the client, patterns match keys below that prefix, and listeners receive keys without it, as you pass them to the client.
 - Errors of the subscriber connection are re-emitted as `error`.
 - `stop()` unsubscribes and disconnects the duplicate connection. The client you passed in stays open.
 
@@ -266,7 +266,7 @@ escapeKey('report[2024]*');
 ```
 
 - The separators are `#p#` after the prefix and `#s#` before the suffix (`KeyPathSeparator.PREFIX` and `.SUFFIX`). An empty prefix or suffix is left out together with its separator.
-- `parseKeyPath()` splits at the first `#p#` and the last `#s#`, so a path built with `buildKeyPath()` parses back to the same parts.
+- `parseKeyPath()` splits at the first `#p#` and the last `#s#`, so a path built with `buildKeyPath()` parses back to the same parts, unless a part itself contains `#p#` or `#s#`.
 - `escapeKey()` puts a backslash before `*`, `?`, `[`, `]` and `\`, so the key matches itself in a glob pattern such as `Watcher`'s `pattern` or `SCAN … MATCH`.
 
 ## Options
