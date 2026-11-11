@@ -6,7 +6,8 @@ import {
     expect,
     it,
 } from 'vitest';
-import type { Client } from '../../../src';
+import type { Client, Cluster } from '../../../src';
+import { connections } from '../../utils/connections';
 import {
     Watcher,
     WatcherEvent,
@@ -286,6 +287,105 @@ describe('watcher', () => {
         } finally {
             await named.del('restart:1');
             named.disconnect();
+        }
+    });
+
+    it('should share one subscriber between the watchers of a client', async () => {
+        const named = createClient({
+            url: process.env.REDIS_CONNECTION_STRING,
+            options: { connectionName: 'watcher-shared' },
+        });
+        const countConnections = async () => (await named.client('LIST') as string)
+            .split('\n')
+            .filter((line) => line.includes(' name=watcher-shared ')).length;
+
+        const first = new Watcher(named, { pattern: 'shared:*' });
+        const second = new Watcher(named, { pattern: 'shared:*' });
+        const keys: string[] = [];
+
+        second.on('set', (key) => keys.push(key));
+
+        try {
+            await named.ping();
+            await Promise.all([first.start(), second.start()]);
+            expect(await countConnections()).toEqual(2);
+
+            await first.stop();
+            await named.set('shared:1', 'x');
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(keys).toEqual(['shared:1']);
+
+            await second.stop();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(await countConnections()).toEqual(1);
+        } finally {
+            await named.del('shared:1');
+            named.disconnect();
+        }
+    });
+
+    it('should stop on async dispose', async () => {
+        const named = createClient({
+            url: process.env.REDIS_CONNECTION_STRING,
+            options: { connectionName: 'watcher-dispose' },
+        });
+        const countConnections = async () => (await named.client('LIST') as string)
+            .split('\n')
+            .filter((line) => line.includes(' name=watcher-dispose ')).length;
+
+        try {
+            await named.ping();
+
+            const watcher = new Watcher(named);
+
+            await watcher.start();
+            expect(await countConnections()).toEqual(2);
+
+            await watcher[Symbol.asyncDispose]();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(await countConnections()).toEqual(1);
+        } finally {
+            named.disconnect();
+        }
+    });
+
+    it('should watch the keys on every node of a cluster', async () => {
+        const cluster = connections.find(([name]) => name === 'cluster')![1]() as Cluster;
+        const watcher = new Watcher(cluster, { pattern: 'cluster:*' });
+        const keys = Array.from({ length: 12 }, (_, i) => `cluster:${i}`);
+        const seen = new Set<string>();
+
+        try {
+            await watcher.start();
+
+            const all = new Promise<void>((resolve) => {
+                watcher.on('set', (key) => {
+                    seen.add(key);
+
+                    if (seen.size === keys.length) {
+                        resolve();
+                    }
+                });
+            });
+
+            // the keys spread over the slot ranges of all three masters (0-5460, 5461-10922, 10923-16383)
+            const slots = await Promise.all(keys.map((key) => cluster.cluster('KEYSLOT', key) as Promise<number>));
+
+            expect(new Set(slots.map((slot) => Math.floor(Number(slot) / 5461))).size).toEqual(3);
+
+            await Promise.all(keys.map((key) => cluster.set(key, 'x')));
+            await all;
+            expect([...seen].sort()).toEqual([...keys].sort());
+        } finally {
+            await watcher.stop();
+            await Promise.all(keys.map((key) => cluster.del(key)));
+            cluster.disconnect();
         }
     });
 });
