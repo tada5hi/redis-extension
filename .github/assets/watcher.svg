@@ -1,6 +1,6 @@
 <svg width="960" height="360" viewBox="0 0 960 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="rxw-title rxw-desc">
     <title id="rxw-title">How a Watcher turns keyspace notifications into events</title>
-    <desc id="rxw-desc">watcher.start() sets notify-keyspace-events to KA on the Redis server and opens a duplicate connection that pattern-subscribes to __key*__:user:*. When the client runs SET user:1 with PX 300, Redis publishes set and expire on the channel __keyspace@0__:user:1, and expired 300 ms later. The Watcher emits each one as an event with the key user:1; keyevent channels are filtered out.</desc>
+    <desc id="rxw-desc">watcher.start() sets notify-keyspace-events to KA on the Redis server and opens a duplicate connection that pattern-subscribes to __keyspace@0__:user:*, the keyspace channel of the client database. When the client runs SET user:1 with PX 300, Redis publishes set and expire on the channel __keyspace@0__:user:1, and expired 300 ms later. The Watcher emits each one as an event with the key user:1.</desc>
 
     <style>
         :root {
@@ -49,7 +49,7 @@
     <rect class="card" x="32" y="156" width="296" height="116" rx="12" stroke="#5B6CC9" stroke-width="1.5"/>
     <text class="title" x="50" y="184">Watcher</text>
     <text class="code muted" x="50" y="208" font-size="12">start(): client.duplicate()</text>
-    <text class="code muted" x="50" y="230" font-size="12">PSUBSCRIBE __key*__:user:*</text>
+    <text class="code muted" x="50" y="230" font-size="12">PSUBSCRIBE __keyspace@0__:user:*</text>
     <text class="code" x="50" y="256" font-size="12">emit(event, 'user:1')</text>
 
     <!-- redis -->
@@ -72,7 +72,6 @@
     <rect x="418" y="244" width="64" height="20" rx="10" fill="#E5484D" fill-opacity="0.14" stroke="#E5484D" stroke-opacity="0.6"/>
     <text class="code" x="450" y="258" font-size="11" text-anchor="middle">expired</text>
     <text class="muted" x="496" y="258" font-size="12">300 ms later, key removed</text>
-    <text class="muted" x="910" y="258" font-size="12" text-anchor="end">__keyevent@… channels: dropped</text>
 
     <!-- SET goes to redis -->
     <path class="rail" d="M328 96 H398" stroke-width="2" marker-end="url(#rxw-head)"/>
