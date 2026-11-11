@@ -5,13 +5,13 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Client } from '../driver';
+import type { Client, Cluster } from '../driver';
 import type { JSONAdapterSetOptions } from './types';
 
 export class JsonAdapter {
-    protected client : Client;
+    protected client : Client | Cluster;
 
-    constructor(client: Client) {
+    constructor(client: Client | Cluster) {
         this.client = client;
     }
 

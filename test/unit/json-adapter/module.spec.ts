@@ -6,16 +6,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Client } from '../../../src';
-import { JsonAdapter, createClient } from '../../../src';
+import type { Client, Cluster } from '../../../src';
+import { JsonAdapter } from '../../../src';
+import { connections } from '../../utils/connections';
 
-describe('json-adapter', () => {
-    let client: Client;
+describe.each(connections)('json-adapter (%s)', (_name, connect) => {
+    let client: Client | Cluster;
 
     beforeAll(async () => {
-        client = createClient({
-            connectionString: process.env.REDIS_CONNECTION_STRING,
-        });
+        client = connect();
     });
 
     afterAll(async () => {

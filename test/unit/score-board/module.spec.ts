@@ -6,19 +6,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { type Client, ScoreBoard, createClient } from '../../../src';
+import type { Client, Cluster } from '../../../src';
+import { ScoreBoard } from '../../../src';
+import { connections } from '../../utils/connections';
 
 const delay = (ms: number) => new Promise((res) => {
     setTimeout(res, ms);
 });
 
-describe('score-board', () => {
-    let client: Client;
+describe.each(connections)('score-board (%s)', (_name, connect) => {
+    let client: Client | Cluster;
 
     beforeAll(async () => {
-        client = createClient({
-            connectionString: process.env.REDIS_CONNECTION_STRING,
-        });
+        client = connect();
     });
 
     afterAll(async () => {

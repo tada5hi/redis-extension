@@ -5,7 +5,7 @@
  * view the LICENSE file that was distributed with this source code.
  */
 
-import type { Client } from '../driver';
+import type { Client, Cluster } from '../driver';
 import type {
     ScoreBoardGetOptions,
     ScoreBoardGetOutput,
@@ -15,11 +15,11 @@ import type {
 } from './types';
 
 export class ScoreBoard {
-    protected client: Client;
+    protected client: Client | Cluster;
 
     protected options: ScoreBoardOptions;
 
-    constructor(client: Client, options: ScoreBoardOptionsInput = {}) {
+    constructor(client: Client | Cluster, options: ScoreBoardOptionsInput = {}) {
         this.client = client;
         this.options = {
             ...options,
