@@ -94,14 +94,27 @@ describe('watcher', () => {
     });
 
     it('should close the subscriber connection when start fails', async () => {
-        const countClients = async () => (await client.client('LIST') as string).trim().split('\n').length;
-        const before = await countClients();
-        const watcher = new Watcher(client, { notifyKeyspaceEvents: 'not-a-flag' });
+        // other spec files share the server, so count only this test's connections
+        const named = createClient({
+            url: process.env.REDIS_CONNECTION_STRING,
+            options: { connectionName: 'watcher-start-fails' },
+        });
+        const countConnections = async () => (await named.client('LIST') as string)
+            .split('\n')
+            .filter((line) => line.includes(' name=watcher-start-fails ')).length;
 
-        await expect(watcher.start()).rejects.toThrow();
-        await new Promise((resolve) => { setTimeout(resolve, 100); });
+        try {
+            await named.ping();
+            const before = await countConnections();
+            const watcher = new Watcher(named, { notifyKeyspaceEvents: 'not-a-flag' });
 
-        expect(await countClients()).toEqual(before);
+            await expect(watcher.start()).rejects.toThrow();
+            await new Promise((resolve) => { setTimeout(resolve, 100); });
+
+            expect(await countConnections()).toEqual(before);
+        } finally {
+            named.disconnect();
+        }
     });
 
     it('should apply the client keyPrefix to patterns and keys', async () => {
