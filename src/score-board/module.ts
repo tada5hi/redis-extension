@@ -22,8 +22,8 @@ export class ScoreBoard {
     constructor(client: Client, options: ScoreBoardOptionsInput = {}) {
         this.client = client;
         this.options = {
-            key: 'score-board',
             ...options,
+            key: options.key ?? 'score-board',
         };
     }
 

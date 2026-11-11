@@ -137,4 +137,13 @@ describe('score-board', () => {
 
         await scoreBoard.clear();
     });
+
+    it('should keep the default key when key is undefined', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: undefined });
+
+        await scoreBoard.add('undefined-key');
+        expect(await client.zscore('score-board', 'undefined-key')).not.toBeNull();
+
+        await scoreBoard.drop('undefined-key');
+    });
 });
