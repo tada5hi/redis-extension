@@ -6,74 +6,27 @@
  */
 
 import { Redis } from 'ioredis';
-import type { ConfigInput } from '../config';
-import { useConfig } from '../config';
-import type { Client } from './types';
+import type { Client, ClientOptions, ConfigInput } from './types';
 
-const getAlias = (key?: string) => key || 'default';
-
-const instances: Record<string, Client> = {};
-
-export function useClient(alias?: string) : Client {
-    alias = getAlias(alias);
-
-    if (Object.prototype.hasOwnProperty.call(instances, alias)) {
-        return instances[alias]!;
-    }
-
-    const config = useConfig(alias);
-
-    instances[alias] = createClient(config);
-
-    return instances[alias]!;
+function withDefaults(options: ClientOptions = {}): ClientOptions {
+    return {
+        enableReadyCheck: true,
+        retryStrategy(times: number): number {
+            return Math.min(times * 50, 2000);
+        },
+        reconnectOnError(error: Error): boolean {
+            return error.message.includes('ECONNRESET');
+        },
+        ...options,
+    };
 }
 
-export function unsetClient(alias?: string) {
-    alias = getAlias(alias);
+export function createClient(input: ConfigInput = {}) : Client {
+    const options = withDefaults(input.options);
 
-    if (!Object.prototype.hasOwnProperty.call(instances, alias)) {
-        return;
+    if (input.connectionString) {
+        return new Redis(input.connectionString, options);
     }
 
-    instances[alias]!.disconnect();
-
-    delete instances[alias];
-}
-
-export function hasClient(alias?: string) {
-    alias = getAlias(alias);
-
-    return Object.prototype.hasOwnProperty.call(instances, alias);
-}
-
-export function setClient(value: Client, alias?: string) : Client {
-    alias = getAlias(alias);
-
-    instances[alias] = value;
-
-    return instances[alias]!;
-}
-
-export function createClient(config?: ConfigInput) : Client {
-    config = config || {};
-
-    if (
-        config.connectionString &&
-        config.options
-    ) {
-        return new Redis(
-            config.connectionString,
-            config.options,
-        );
-    }
-
-    if (config.options) {
-        return new Redis(config.options);
-    }
-
-    if (config.connectionString) {
-        return new Redis(config.connectionString);
-    }
-
-    return new Redis();
+    return new Redis(options);
 }

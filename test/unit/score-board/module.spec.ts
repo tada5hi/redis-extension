@@ -6,19 +6,19 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
  * view the LICENSE file that was distributed with this source code.
  */
 
-import { type Client, ScoreBoard, createClient } from '../../../src';
+import type { Client, Cluster } from '../../../src';
+import { ScoreBoard } from '../../../src';
+import { connections } from '../../utils/connections';
 
 const delay = (ms: number) => new Promise((res) => {
     setTimeout(res, ms);
 });
 
-describe('score-board', () => {
-    let client: Client;
+describe.each(connections)('score-board (%s)', (_name, connect) => {
+    let client: Client | Cluster;
 
     beforeAll(async () => {
-        client = createClient({
-            connectionString: process.env.REDIS_CONNECTION_STRING,
-        });
+        client = connect();
     });
 
     afterAll(async () => {
@@ -145,5 +145,19 @@ describe('score-board', () => {
         expect(await client.zscore('score-board', 'undefined-key')).not.toBeNull();
 
         await scoreBoard.drop('undefined-key');
+    });
+
+    it('should apply offset without a limit', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'offset-only' });
+
+        await scoreBoard.add('first', 1);
+        await scoreBoard.add('second', 2);
+        await scoreBoard.add('third', 3);
+
+        const output = await scoreBoard.get({ sort: 'ASC', offset: 1 });
+        expect(output.data.map((item) => item.id)).toEqual(['second', 'third']);
+        expect(output.meta).toEqual({ total: 3, offset: 1 });
+
+        await scoreBoard.clear();
     });
 });

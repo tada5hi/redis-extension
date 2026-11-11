@@ -26,3 +26,10 @@ export {
     Client,
     Cluster,
 };
+
+export type ConfigInput = {
+    connectionString?: string,
+    options?: ClientOptions,
+    clusterNodes?: ClusterNode[],
+    clusterOptions?: ClusterOptions
+};

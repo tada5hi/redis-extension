@@ -5,7 +5,7 @@
 <h1 align="center">redis-extension</h1>
 
 <p align="center">
-    <b>Key watchers, JSON values, scoreboards and key paths for ioredis, with clients shared by alias.</b><br>
+    <b>Key watchers, JSON values, scoreboards and key paths for ioredis clients and clusters.</b><br>
     Stop wiring keyspace notifications, <code>JSON.parse</code> calls and sorted-set replies by hand:<br>
     pass your ioredis client to a helper and keep using it for everything else.
 </p>
@@ -41,7 +41,7 @@ redis-extension writes those patterns once, on top of the ioredis client you alr
 | **React to key changes** | Set `notify-keyspace-events`, `duplicate()` a connection (a subscribed connection cannot run commands), `PSUBSCRIBE` the right channels, strip `__keyspace@0__:` from each channel name | `new Watcher(client, { pattern: 'user:*' })`, then `watcher.on('del', key => …)` |
 | **Store objects** | `JSON.stringify` on write, `JSON.parse` in a `try`/`catch` on read, and the `SET` argument order for `PX`, `NX`, `XX` and `KEEPTTL` | `JsonAdapter.set(key, value, { seconds: 60, ifNotExists: true })`; `get()` resolves `undefined` for a missing or unparsable value |
 | **Rank members by score** | `ZADD`, then `ZREVRANGEBYSCORE … WITHSCORES LIMIT`, pair up the flat reply, and a separate `ZCARD` for the total | `ScoreBoard.add(id)`, then `get({ limit: 10 })` returns `{ data: [{ id, score }], meta: { total } }` |
-| **Share one connection** | A module-level singleton, or a client passed through every layer | `setConfig({ connectionString })` once, then `useClient()` anywhere; aliases for a second server |
+| **Single node or cluster** | Helpers written against `Redis`, or a second code path for `Cluster` | `JsonAdapter` and `ScoreBoard` take either; `createClient()` adds reconnect defaults |
 | **Compound keys** | String concatenation, and a parser that has to agree with it | `buildKeyPath({ prefix, key, suffix })` and `parseKeyPath()`; `escapeKey()` for glob patterns |
 
 The same delete listener, both ways:
@@ -95,39 +95,27 @@ The package ships ES module and CommonJS builds with type declarations. It requi
 
 ### Connections
 
-Register a configuration once, then fetch the client for it wherever you need it:
+Create a client with the package defaults and hand it to the helpers. How your application shares it, in a module variable or a dependency injection container, is up to you:
 
 ```typescript
-import { setConfig, useClient } from 'redis-extension';
+import { JsonAdapter, createClient } from 'redis-extension';
 
-setConfig({
+const client = createClient({
     connectionString: 'redis://127.0.0.1:6379',
 });
 
-const client = useClient();
-await client.set('greeting', 'hello');
+const adapter = new JsonAdapter(client);
+await adapter.set('greeting', { text: 'hello' });
 ```
 
-- `useClient(alias?)` creates the client from `useConfig(alias)` on the first call and returns the same instance afterwards. The alias defaults to `'default'`.
-- `setConfig(value, alias?)` stores a configuration. Its `options` go to the ioredis client on top of the built-in defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default.
-- `useConfig(alias?)` returns the configuration for that alias, or the built-in defaults for an alias that has none.
-- `unsetClient(alias?)` disconnects the cached client and forgets it. `setClient(client, alias?)` registers a client you created yourself, and `hasClient(alias?)` checks for one. `hasConfig` and `unsetConfig` do the same for configurations.
-- `createClient(config?)` builds a new, uncached client from `connectionString` and `options`. Without arguments it connects to `localhost:6379` with the ioredis defaults.
+- `createClient(input?)` opens a new ioredis `Redis` connection on every call. Its `options` go to ioredis on top of the defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default. Without a `connectionString` it connects to `localhost:6379`.
+- `createCluster(input?)` opens a new ioredis `Cluster`. The startup nodes come from `clusterNodes`; when that list is empty, `connectionString` is used as the only node. `clusterOptions` is passed to ioredis as it is; the client defaults do not apply.
+- Close a connection with `disconnect()` or `quit()` when you no longer need it.
 
-A second server lives under its own alias:
+`JsonAdapter` and `ScoreBoard` accept a client or a cluster:
 
 ```typescript
-import { setConfig, useClient } from 'redis-extension';
-
-setConfig({ connectionString: 'redis://cache:6379/1' }, 'cache');
-
-const cache = useClient('cache');
-```
-
-For Redis Cluster, `useCluster(alias?)`, `setCluster`, `hasCluster` and `createCluster(config?)` work the same way. The startup nodes come from `clusterNodes`; when that list is empty, `connectionString` is used as the only node. `clusterOptions` is passed to the ioredis `Cluster`.
-
-```typescript
-import { createCluster } from 'redis-extension';
+import { ScoreBoard, createCluster } from 'redis-extension';
 
 const cluster = createCluster({
     clusterNodes: [
@@ -136,6 +124,8 @@ const cluster = createCluster({
     ],
     clusterOptions: { scaleReads: 'slave' },
 });
+
+const scoreBoard = new ScoreBoard(cluster, { key: 'users-online' });
 ```
 
 ### Watcher
@@ -143,9 +133,9 @@ const cluster = createCluster({
 Watch keys that match a glob pattern and receive one event per change:
 
 ```typescript
-import { Watcher, useClient } from 'redis-extension';
+import { Watcher, createClient } from 'redis-extension';
 
-const client = useClient();
+const client = createClient();
 
 const watcher = new Watcher(client, {
     pattern: 'user:*',
@@ -181,9 +171,9 @@ await watcher.stop();
 `on()` accepts the event names as strings or as members of the exported `WatcherEvent` enum:
 
 ```typescript
-import { Watcher, WatcherEvent, useClient } from 'redis-extension';
+import { Watcher, WatcherEvent, createClient } from 'redis-extension';
 
-const watcher = new Watcher(useClient(), { pattern: 'session:*' });
+const watcher = new Watcher(createClient(), { pattern: 'session:*' });
 
 watcher.on(WatcherEvent.EXPIRED, (key) => {
     console.log('session ended', key);
@@ -195,9 +185,9 @@ await watcher.start();
 On a server where `CONFIG` is blocked, as on many managed Redis services, enable keyspace notifications through the provider and pass `notifyKeyspaceEvents: false`:
 
 ```typescript
-import { Watcher, useClient } from 'redis-extension';
+import { Watcher, createClient } from 'redis-extension';
 
-const watcher = new Watcher(useClient(), {
+const watcher = new Watcher(createClient(), {
     pattern: 'session:*',
     notifyKeyspaceEvents: false,
 });
@@ -208,11 +198,11 @@ const watcher = new Watcher(useClient(), {
 Store values as JSON and read them back as objects:
 
 ```typescript
-import { JsonAdapter, useClient } from 'redis-extension';
+import { JsonAdapter, createClient } from 'redis-extension';
 
 type User = { name: string, roles: string[] };
 
-const adapter = new JsonAdapter(useClient());
+const adapter = new JsonAdapter(createClient());
 
 await adapter.set('user:51f3509d', { name: 'admin', roles: ['owner'] }, {
     seconds: 3600,
@@ -233,9 +223,9 @@ await adapter.drop('user:51f3509d'); // true
 Keep members ordered by a score, for example who was active most recently:
 
 ```typescript
-import { ScoreBoard, useClient } from 'redis-extension';
+import { ScoreBoard, createClient } from 'redis-extension';
 
-const scoreBoard = new ScoreBoard(useClient(), { key: 'users-online' });
+const scoreBoard = new ScoreBoard(createClient(), { key: 'users-online' });
 
 await scoreBoard.add('user:1');
 await scoreBoard.add('user:2', Date.now() + 1000);
@@ -255,7 +245,7 @@ await scoreBoard.clear();
 
 - The board is a sorted set stored under `key`, which defaults to `score-board`. Give each board its own key; boards with the same key share their members.
 - `add(id, score?)` runs `ZADD`. Adding an existing id updates its score. The score defaults to `Date.now()`, the current unix timestamp in milliseconds.
-- `get(options?)` returns members highest score first (`sort: 'DESC'`), or lowest first with `sort: 'ASC'`. `offset` and `limit` page through them, and `meta.total` counts all members. Ids come back as strings and scores as numbers.
+- `get(options?)` returns members highest score first (`sort: 'DESC'`), or lowest first with `sort: 'ASC'`. `offset` skips members and `limit` caps how many come back, and `meta.total` counts all members. Ids come back as strings and scores as numbers.
 - `drop(id)` removes one member; `clear()` deletes the whole board.
 
 ### Key paths
@@ -285,10 +275,10 @@ escapeKey('report[2024]*');
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `connectionString` | `string` | none | Redis URL, such as `redis://user:pass@host:6379/0`. Used as the only cluster node when `clusterNodes` is empty |
-| `options` | `ClientOptions` (ioredis `RedisOptions`) | `enableReadyCheck`, `retryStrategy`, `reconnectOnError` (see [Connections](#connections)) | Passed to the ioredis client, on top of the defaults |
-| `clusterNodes` | `ClusterNode[]` | `[]` | Startup nodes for `createCluster` and `useCluster` |
-| `clusterOptions` | `ClusterOptions` | `{}` | Passed to the ioredis `Cluster` |
+| `connectionString` | `string` | `localhost:6379` | Redis URL, such as `redis://user:pass@host:6379/0`. Used as the only cluster node when `clusterNodes` is empty |
+| `options` | `ClientOptions` (ioredis `RedisOptions`) | `enableReadyCheck`, `retryStrategy`, `reconnectOnError` (see [Connections](#connections)) | Passed to the ioredis client by `createClient`, on top of the defaults |
+| `clusterNodes` | `ClusterNode[]` | `[]` | Startup nodes for `createCluster` |
+| `clusterOptions` | `ClusterOptions` | `{}` | Passed to the ioredis `Cluster` by `createCluster` |
 
 ### Watcher options
 
@@ -319,27 +309,23 @@ escapeKey('report[2024]*');
 |---|---|---|---|
 | `sort` | `'ASC' \| 'DESC'` | `'DESC'` | Lowest or highest score first |
 | `limit` | `number` | all members | Members to return |
-| `offset` | `number` | `0` | Members to skip; only applied together with `limit` |
+| `offset` | `number` | `0` | Members to skip |
 
 ## API
 
 | Export | Kind | Purpose |
 |---|---|---|
-| `setConfig`, `useConfig`, `hasConfig`, `unsetConfig` | function | Store and read a `Config` per alias |
-| `buildConfig`, `buildConfigWithDefaults` | function | Fill in a `Config` from a `ConfigInput`, without or with the built-in client defaults |
-| `useClient`, `setClient`, `hasClient`, `unsetClient` | function | Cached ioredis client per alias |
-| `createClient` | function | New, uncached client from a `ConfigInput` |
-| `useCluster`, `setCluster`, `hasCluster` | function | Cached ioredis cluster per alias |
-| `createCluster` | function | New, uncached cluster from a `ConfigInput` |
+| `createClient` | function | New ioredis client from a `ConfigInput`, with the default options |
+| `createCluster` | function | New ioredis cluster from a `ConfigInput` |
 | `Client`, `Cluster` | class | The ioredis `Redis` and `Cluster` classes |
 | `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys |
 | `WatcherEvent` | enum | Event names a `Watcher` emits, such as `SET = 'set'` and `EXPIRED = 'expired'` |
-| `JsonAdapter` | class | `set`, `get` and `drop` of JSON values |
-| `ScoreBoard` | class | `add`, `get`, `drop` and `clear` on a sorted set |
+| `JsonAdapter` | class | `set`, `get` and `drop` of JSON values, on a client or a cluster |
+| `ScoreBoard` | class | `add`, `get`, `drop` and `clear` on a sorted set, on a client or a cluster |
 | `buildKeyPath`, `parseKeyPath` | function | Join and split `prefix#p#key#s#suffix` |
 | `escapeKey` | function | Escape glob characters in a key |
 | `KeyPathSeparator` | enum | `PREFIX = '#p#'`, `SUFFIX = '#s#'` |
-| `Config`, `ConfigInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
+| `ConfigInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
 | `WatcherOptions`, `JSONAdapterSetOptions`, `KeyPath` | type | Options and values of the helpers above |
 | `ScoreBoardOptions`, `ScoreBoardOptionsInput`, `ScoreBoardGetOptions`, `ScoreBoardGetOutput`, `ScoreBoardItem` | type | ScoreBoard options and results |
 
