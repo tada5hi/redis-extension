@@ -160,4 +160,46 @@ describe.each(connections)('score-board (%s)', (_name, connect) => {
 
         await scoreBoard.clear();
     });
+
+    it('should prune members below a score', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'prune' });
+
+        await scoreBoard.add('stale', 100);
+        await scoreBoard.add('edge', 200);
+        await scoreBoard.add('fresh', 300);
+
+        expect(await scoreBoard.prune(200)).toEqual(1);
+
+        const { data } = await scoreBoard.get({ sort: 'ASC' });
+        expect(data.map((item) => item.id)).toEqual(['edge', 'fresh']);
+
+        await scoreBoard.clear();
+    });
+
+    it('should read the score and rank of a member', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'rank' });
+
+        await scoreBoard.add('low', 1);
+        await scoreBoard.add('high', 2.5);
+
+        expect(await scoreBoard.score('high')).toEqual(2.5);
+        expect(await scoreBoard.score('missing')).toBeUndefined();
+
+        expect(await scoreBoard.rank('high')).toEqual(0);
+        expect(await scoreBoard.rank('low')).toEqual(1);
+        expect(await scoreBoard.rank('low', 'ASC')).toEqual(0);
+        expect(await scoreBoard.rank('missing')).toBeUndefined();
+
+        await scoreBoard.clear();
+    });
+
+    it('should increment the score of a member', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'increment' });
+
+        expect(await scoreBoard.increment('player')).toEqual(1);
+        expect(await scoreBoard.increment('player', 2.5)).toEqual(3.5);
+        expect(await scoreBoard.score('player')).toEqual(3.5);
+
+        await scoreBoard.clear();
+    });
 });

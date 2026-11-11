@@ -35,9 +35,29 @@ export class ScoreBoard {
         // a negative count returns every member from the offset on
         const count = options.limit ?? -1;
 
-        const data = (options.sort || 'DESC') === 'DESC' ?
-            await this.client.zrevrangebyscore(key, '+inf', '-inf', 'WITHSCORES', 'LIMIT', offset, count) :
-            await this.client.zrangebyscore(key, '-inf', '+inf', 'WITHSCORES', 'LIMIT', offset, count);
+        // range and total in one transaction, so total matches the returned page
+        const transaction = this.client.multi();
+
+        if ((options.sort || 'DESC') === 'DESC') {
+            transaction.zrevrangebyscore(key, '+inf', '-inf', 'WITHSCORES', 'LIMIT', offset, count);
+        } else {
+            transaction.zrangebyscore(key, '-inf', '+inf', 'WITHSCORES', 'LIMIT', offset, count);
+        }
+
+        transaction.zcard(key);
+
+        const [[rangeError, data], [totalError, total]] = await transaction.exec() as [
+            [Error | null, string[]],
+            [Error | null, number],
+        ];
+
+        if (rangeError) {
+            throw rangeError;
+        }
+
+        if (totalError) {
+            throw totalError;
+        }
 
         const items : ScoreBoardItem[] = [];
 
@@ -47,8 +67,6 @@ export class ScoreBoard {
                 score: Number(data[i + 1]),
             });
         }
-
-        const total = await this.client.zcard(this.options.key);
 
         return {
             data: items,
@@ -91,5 +109,50 @@ export class ScoreBoard {
             this.options.key,
             `${id}`,
         );
+    }
+
+    /**
+     * Remove every member whose score is lower than the given score.
+     *
+     * @param below exclusive upper bound, e.g. Date.now() - 60_000
+     * @returns the number of removed members
+     */
+    async prune(below: number) : Promise<number> {
+        return this.client.zremrangebyscore(this.options.key, '-inf', `(${below}`);
+    }
+
+    /**
+     * Read the score of a member.
+     *
+     * @returns the score, or undefined for an unknown member
+     */
+    async score(id: string) : Promise<number | undefined> {
+        const score = await this.client.zscore(this.options.key, id);
+
+        return score === null ? undefined : Number(score);
+    }
+
+    /**
+     * Read the zero-based position of a member.
+     *
+     * @param id
+     * @param sort 'DESC' (default) counts from the highest score, 'ASC' from the lowest
+     * @returns the position, or undefined for an unknown member
+     */
+    async rank(id: string, sort: 'ASC' | 'DESC' = 'DESC') : Promise<number | undefined> {
+        const rank = sort === 'DESC' ?
+            await this.client.zrevrank(this.options.key, id) :
+            await this.client.zrank(this.options.key, id);
+
+        return rank === null ? undefined : rank;
+    }
+
+    /**
+     * Add to the score of a member; an unknown member starts at 0.
+     *
+     * @returns the new score
+     */
+    async increment(id: string, by = 1) : Promise<number> {
+        return Number(await this.client.zincrby(this.options.key, by, id));
     }
 }
