@@ -101,15 +101,15 @@ Create a client with the package defaults and hand it to the helpers. How your a
 import { JsonAdapter, createClient } from 'redis-extension';
 
 const client = createClient({
-    connectionString: 'redis://127.0.0.1:6379',
+    url: 'redis://127.0.0.1:6379',
 });
 
 const adapter = new JsonAdapter(client);
 await adapter.set('greeting', { text: 'hello' });
 ```
 
-- `createClient(input?)` opens a new ioredis `Redis` connection on every call. Its `options` go to ioredis on top of the defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default. Without a `connectionString` it connects to `localhost:6379`.
-- `createCluster(input?)` opens a new ioredis `Cluster`. The startup nodes come from `clusterNodes`; when that list is empty, `connectionString` is used as the only node. `clusterOptions` is passed to ioredis as it is; the client defaults do not apply.
+- `createClient(input?)` opens a new ioredis `Redis` connection on every call. Its `options` go to ioredis on top of the defaults: `enableReadyCheck: true`, a retry strategy that keeps reconnecting with a backoff of `times * 50` ms (at most 2000 ms), and a reconnect on `ECONNRESET` errors. An option you pass wins over its default. Without a `url` it connects to `localhost:6379`.
+- `createCluster(input)` opens a new ioredis `Cluster` from the startup `nodes`. Its `options` are passed to ioredis as they are; the client defaults do not apply.
 - Close a connection with `disconnect()` or `quit()` when you no longer need it.
 
 `JsonAdapter` and `ScoreBoard` accept a client or a cluster:
@@ -118,11 +118,11 @@ await adapter.set('greeting', { text: 'hello' });
 import { ScoreBoard, createCluster } from 'redis-extension';
 
 const cluster = createCluster({
-    clusterNodes: [
+    nodes: [
         { host: '10.0.0.1', port: 6379 },
         { host: '10.0.0.2', port: 6379 },
     ],
-    clusterOptions: { scaleReads: 'slave' },
+    options: { scaleReads: 'slave' },
 });
 
 const scoreBoard = new ScoreBoard(cluster, { key: 'users-online' });
@@ -164,7 +164,7 @@ await watcher.stop();
 
 - `start()` runs `CONFIG SET notify-keyspace-events KA` on the server (see [`notifyKeyspaceEvents`](#watcher-options) to skip it), opens a duplicate connection with `client.duplicate()` and pattern-subscribes it to `__key*__:<pattern>` for every pattern. Calling it again while the watcher runs does nothing.
 - The event name is the Redis notification: `set`, `del`, `expire` (a TTL was set), `expired` (the key was removed because its TTL ran out), `rename_from`, `hset`, `lpush`, `zadd` and so on. The listener receives the key. A `SET … PX 500` emits `set` and `expire`, then `expired` 500 ms later.
-- `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key. Only keyspace channels emit; keyevent channels are filtered out, so each change emits once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally.
+- `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key. Only keyspace channels emit; keyevent channels are filtered out, so each change emits once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally. With an ioredis `keyPrefix` on the client, patterns match keys below that prefix, and listeners receive keys without it, as you pass them to the client.
 - Errors of the subscriber connection are re-emitted as `error`.
 - `stop()` unsubscribes and disconnects the duplicate connection. The client you passed in stays open.
 
@@ -214,7 +214,7 @@ const user = await adapter.get<User>('user:51f3509d');
 await adapter.drop('user:51f3509d'); // true
 ```
 
-- `set(key, value, options?)` writes `JSON.stringify(value)` with `SET` and resolves without a result, also when `ifExists` or `ifNotExists` skipped the write. The [set options](#jsonadapter-set-options) map to `PX`, `XX`, `NX` and `KEEPTTL`.
+- `set(key, value, options?)` writes `JSON.stringify(value)` with `SET`. It resolves `true` when the value was written and `false` when `ifExists` or `ifNotExists` skipped the write. The [set options](#jsonadapter-set-options) map to `PX`, `XX`, `NX` and `KEEPTTL`.
 - `get<T>(key)` resolves the parsed value, or `undefined` when the key does not exist or its value is not valid JSON. It rejects when the command fails, for example on a connection error or a key of another type. `T` is not checked at runtime.
 - `drop(key)` deletes the key and resolves `true` when a key was removed.
 
@@ -266,19 +266,24 @@ escapeKey('report[2024]*');
 ```
 
 - The separators are `#p#` after the prefix and `#s#` before the suffix (`KeyPathSeparator.PREFIX` and `.SUFFIX`). An empty prefix or suffix is left out together with its separator.
-- `parseKeyPath()` removes all whitespace first, then splits at the first `#p#` and the last `#s#`. A key that contains whitespace does not round-trip.
+- `parseKeyPath()` splits at the first `#p#` and the last `#s#`, so a path built with `buildKeyPath()` parses back to the same parts.
 - `escapeKey()` puts a backslash before `*`, `?`, `[`, `]` and `\`, so the key matches itself in a glob pattern such as `Watcher`'s `pattern` or `SCAN … MATCH`.
 
 ## Options
 
-### Config
+### createClient input
 
 | Option | Type | Default | Description |
 |---|---|---|---|
-| `connectionString` | `string` | `localhost:6379` | Redis URL, such as `redis://user:pass@host:6379/0`. Used as the only cluster node when `clusterNodes` is empty |
-| `options` | `ClientOptions` (ioredis `RedisOptions`) | `enableReadyCheck`, `retryStrategy`, `reconnectOnError` (see [Connections](#connections)) | Passed to the ioredis client by `createClient`, on top of the defaults |
-| `clusterNodes` | `ClusterNode[]` | `[]` | Startup nodes for `createCluster` |
-| `clusterOptions` | `ClusterOptions` | `{}` | Passed to the ioredis `Cluster` by `createCluster` |
+| `url` | `string` | `localhost:6379` | Redis URL, such as `redis://user:pass@host:6379/0` |
+| `options` | `ClientOptions` (ioredis `RedisOptions`) | `enableReadyCheck`, `retryStrategy`, `reconnectOnError` (see [Connections](#connections)) | Passed to ioredis on top of the defaults |
+
+### createCluster input
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `nodes` | `ClusterNode[]` | required | Startup nodes, as `{ host, port }` objects or URLs |
+| `options` | `ClusterOptions` | `{}` | Passed to the ioredis `Cluster` as they are |
 
 ### Watcher options
 
@@ -315,8 +320,8 @@ escapeKey('report[2024]*');
 
 | Export | Kind | Purpose |
 |---|---|---|
-| `createClient` | function | New ioredis client from a `ConfigInput`, with the default options |
-| `createCluster` | function | New ioredis cluster from a `ConfigInput` |
+| `createClient` | function | New ioredis client from a `ClientInput`, with the default options |
+| `createCluster` | function | New ioredis cluster from a `ClusterInput` |
 | `Client`, `Cluster` | class | The ioredis `Redis` and `Cluster` classes |
 | `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys |
 | `WatcherEvent` | enum | Event names a `Watcher` emits, such as `SET = 'set'` and `EXPIRED = 'expired'` |
@@ -325,7 +330,7 @@ escapeKey('report[2024]*');
 | `buildKeyPath`, `parseKeyPath` | function | Join and split `prefix#p#key#s#suffix` |
 | `escapeKey` | function | Escape glob characters in a key |
 | `KeyPathSeparator` | enum | `PREFIX = '#p#'`, `SUFFIX = '#s#'` |
-| `ConfigInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
+| `ClientInput`, `ClusterInput`, `ClientOptions`, `ClusterOptions`, `ClusterNode` | type | Connection configuration |
 | `WatcherOptions`, `JSONAdapterSetOptions`, `KeyPath` | type | Options and values of the helpers above |
 | `ScoreBoardOptions`, `ScoreBoardOptionsInput`, `ScoreBoardGetOptions`, `ScoreBoardGetOutput`, `ScoreBoardItem` | type | ScoreBoard options and results |
 
