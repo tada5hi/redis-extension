@@ -168,7 +168,7 @@ await watcher.stop();
 - `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key of the client's database. A change emits once per pattern it matches, so overlapping patterns emit it more than once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally. With an ioredis `keyPrefix` on the client, patterns match keys below that prefix, and listeners receive keys without it, as you pass them to the client.
 - Errors of the subscriber connection are re-emitted as `error` on every watcher that uses it.
 - `stop()` unsubscribes the watcher's patterns. The client you passed in stays open.
-- On a cluster, each master publishes the notifications of its own keys, so `start()` waits until the cluster is ready and subscribes on every master. Masters that join later, for example after resharding, are watched from the next `start()` on.
+- On a cluster, each master publishes the notifications of its own keys, so `start()` waits until the cluster is ready, through reconnect errors, and subscribes on every master; it rejects when the cluster is closed before it gets ready. Subscriber connections to cluster nodes reconnect on their own and restore their subscriptions. Masters that join later, for example after resharding, are watched from the next `start()` on.
 
 A watcher is also an async disposable, so `await using` stops it at the end of the block:
 
