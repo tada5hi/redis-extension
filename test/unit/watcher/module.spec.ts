@@ -243,4 +243,49 @@ describe('watcher', () => {
             named.disconnect();
         }
     });
+
+    it('should track the subscriber of a restart that overlaps a stop', async () => {
+        const named = createClient({
+            url: process.env.REDIS_CONNECTION_STRING,
+            options: { connectionName: 'watcher-restart' },
+        });
+        const countConnections = async () => (await named.client('LIST') as string)
+            .split('\n')
+            .filter((line) => line.includes(' name=watcher-restart ')).length;
+
+        try {
+            await named.ping();
+
+            const watcher = new Watcher(named, { pattern: 'restart:*' });
+            const keys: string[] = [];
+
+            watcher.on('set', (key) => keys.push(key));
+
+            const first = watcher.start();
+            const stopping = watcher.stop();
+            const second = watcher.start();
+
+            await Promise.all([first, stopping, second]);
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100); 
+            });
+            expect(await countConnections()).toEqual(2);
+
+            await named.set('restart:1', 'x');
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100); 
+            });
+            expect(keys).toEqual(['restart:1']);
+
+            await watcher.stop();
+            await watcher.stop();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100); 
+            });
+            expect(await countConnections()).toEqual(1);
+        } finally {
+            await named.del('restart:1');
+            named.disconnect();
+        }
+    });
 });

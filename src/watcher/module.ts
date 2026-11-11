@@ -14,9 +14,11 @@ import type { WatcherOptions } from './types';
 export class Watcher extends EventEmitter {
     protected client: Redis;
 
-    protected subscriberClient : Redis | undefined;
-
-    protected starting : Promise<void> | undefined;
+    /**
+     * The start in progress or done, resolving the subscriber connection it
+     * opened. Each stop tears down the subscriber of the start it ends.
+     */
+    protected starting : Promise<Redis> | undefined;
 
     protected subscribePatterns: string[];
 
@@ -75,14 +77,19 @@ export class Watcher extends EventEmitter {
      */
     async start() : Promise<void> {
         if (!this.starting) {
-            this.starting = this.subscribe().catch((error) => {
-                this.starting = undefined;
+            const starting = this.subscribe();
 
-                throw error;
+            this.starting = starting;
+
+            // a failed start allows the next one, unless a stop and restart replaced it
+            starting.catch(() => {
+                if (this.starting === starting) {
+                    this.starting = undefined;
+                }
             });
         }
 
-        return this.starting;
+        await this.starting;
     }
 
     async stop() : Promise<void> {
@@ -94,15 +101,13 @@ export class Watcher extends EventEmitter {
 
         this.starting = undefined;
 
+        let subscriber : Redis;
+
         try {
-            await starting;
+            subscriber = await starting;
         } catch {
             return;
         }
-
-        const subscriber = this.subscriberClient!;
-
-        this.subscriberClient = undefined;
 
         try {
             await subscriber.punsubscribe(...this.subscribePatterns);
@@ -111,7 +116,7 @@ export class Watcher extends EventEmitter {
         }
     }
 
-    protected async subscribe() : Promise<void> {
+    protected async subscribe() : Promise<Redis> {
         const subscriber = this.client.duplicate();
 
         const { notifyKeyspaceEvents = 'KA' } = this.options;
@@ -144,6 +149,6 @@ export class Watcher extends EventEmitter {
             }
         });
 
-        this.subscriberClient = subscriber;
+        return subscriber;
     }
 }
