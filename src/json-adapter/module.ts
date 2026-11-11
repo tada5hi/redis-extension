@@ -6,19 +6,19 @@
  */
 
 import type { Client, Cluster } from '../driver';
-import type { JSONAdapterOptions, JSONAdapterSerializer, JSONAdapterSetOptions } from './types';
+import type { JSONAdapterOptions, JSONAdapterSetOptions } from './types';
 
 export class JsonAdapter<T = any> {
     protected client : Client | Cluster;
 
-    protected serializer : JSONAdapterSerializer;
+    protected stringify : (value: T) => string | Promise<string>;
 
-    protected parse : ((value: unknown) => T) | undefined;
+    protected parse : (text: string) => T | Promise<T>;
 
     constructor(client: Client | Cluster, options: JSONAdapterOptions<T> = {}) {
         this.client = client;
-        this.serializer = options.serializer || JSON;
-        this.parse = options.parse;
+        this.stringify = options.stringify || JSON.stringify;
+        this.parse = options.parse || JSON.parse;
     }
 
     /**
@@ -28,7 +28,7 @@ export class JsonAdapter<T = any> {
      */
     async set(key: string, value: T, options: JSONAdapterSetOptions = {}) : Promise<boolean> {
         // JSON.stringify returns undefined for undefined, functions and symbols
-        const data : unknown = this.serializer.stringify(value);
+        const data : unknown = await this.stringify(value);
 
         if (typeof data !== 'string') {
             throw new TypeError(`The value for the key ${key} cannot be serialized.`);
@@ -80,7 +80,7 @@ export class JsonAdapter<T = any> {
      * Read a value.
      *
      * @returns the value, or undefined when the key does not exist, its value
-     * cannot be deserialized, or parse rejects it.
+     * cannot be parsed, or parse rejects it.
      */
     async get(key: string) : Promise<undefined | T> {
         return this.read(await this.client.get(key));
@@ -102,7 +102,7 @@ export class JsonAdapter<T = any> {
             await Promise.all(keys.map((key) => this.client.get(key))) :
             await this.client.mget(keys);
 
-        return entries.map((entry) => this.read(entry));
+        return Promise.all(entries.map((entry) => this.read(entry)));
     }
 
     /**
@@ -154,15 +154,13 @@ export class JsonAdapter<T = any> {
         return await this.client.del(key) === 1;
     }
 
-    protected read(entry: string | null) : T | undefined {
+    protected async read(entry: string | null) : Promise<T | undefined> {
         if (entry === null) {
             return undefined;
         }
 
         try {
-            const value = this.serializer.parse(entry);
-
-            return this.parse ? this.parse(value) : value as T;
+            return await this.parse(entry);
         } catch {
             return undefined;
         }

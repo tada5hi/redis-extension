@@ -119,12 +119,14 @@ describe.each(connections)('json-adapter (%s)', (_name, connect) => {
 
     it('should validate values with parse', async () => {
         const adapter = new JsonAdapter<{ id: number }>(client, {
-            parse: (value) => {
-                if (typeof value !== 'object' || value === null || typeof (value as { id?: unknown }).id !== 'number') {
+            parse: (text) => {
+                const value = JSON.parse(text);
+
+                if (typeof value?.id !== 'number') {
                     throw new TypeError('not a record');
                 }
 
-                return { id: (value as { id: number }).id };
+                return { id: value.id };
             },
         });
 
@@ -139,23 +141,56 @@ describe.each(connections)('json-adapter (%s)', (_name, connect) => {
         await client.del('parse:invalid');
     });
 
-    it('should use a custom serializer', async () => {
+    it('should use a custom parse to revive values', async () => {
         const adapter = new JsonAdapter<{ at: Date }>(client, {
-            serializer: {
-                stringify: (value) => JSON.stringify(value),
-                parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
-            },
+            parse: (text) => JSON.parse(text, (key, value) => (key === 'at' ? new Date(value) : value)),
         });
         const at = new Date('2026-11-11T12:00:00.000Z');
 
-        await adapter.set('serializer', { at });
+        await adapter.set('revive', { at });
 
-        const output = await adapter.get('serializer');
+        const output = await adapter.get('revive');
 
         expect(output!.at).toBeInstanceOf(Date);
         expect(output!.at.getTime()).toEqual(at.getTime());
 
-        await adapter.drop('serializer');
+        await adapter.drop('revive');
+    });
+
+    it('should await async stringify and parse', async () => {
+        const adapter = new JsonAdapter<{ id: number }>(client, {
+            stringify: async (value) => `v1:${JSON.stringify(value)}`,
+            parse: async (text) => {
+                if (!text.startsWith('v1:')) {
+                    throw new TypeError('unknown version');
+                }
+
+                return JSON.parse(text.substring(3));
+            },
+        });
+
+        expect(await adapter.set('async:a', { id: 1 })).toBe(true);
+        expect(await client.get('async:a')).toEqual('v1:{"id":1}');
+        expect(await adapter.get('async:a')).toEqual({ id: 1 });
+
+        await client.set('async:b', '{"id":2}');
+
+        expect(await adapter.get('async:b')).toBeUndefined();
+        expect(await adapter.getMany(['async:a', 'async:b'])).toEqual([{ id: 1 }, undefined]);
+        expect(await adapter.getOrSet('async:b', () => ({ id: 3 }))).toEqual({ id: 3 });
+        expect(await adapter.get('async:b')).toEqual({ id: 3 });
+
+        await client.del('async:a');
+        await client.del('async:b');
+    });
+
+    it('should reject when an async stringify resolves no string', async () => {
+        const adapter = new JsonAdapter(client, {
+            stringify: async () => undefined as unknown as string,
+        });
+
+        await expect(adapter.set('async:none', 1)).rejects.toThrow(TypeError);
+        expect(await client.exists('async:none')).toBe(0);
     });
 
     it('should resolve the stored value when a concurrent getOrSet wins', async () => {
