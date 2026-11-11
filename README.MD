@@ -40,7 +40,7 @@ redis-extension writes those patterns once, on top of the ioredis client you alr
 |---|---|---|
 | **React to key changes** | Set `notify-keyspace-events`, `duplicate()` a connection (a subscribed connection cannot run commands), `PSUBSCRIBE` the right channels, strip `__keyspace@0__:` from each channel name | `new Watcher(client, { pattern: 'user:*' })`, then `watcher.on('del', key => …)` |
 | **Store objects** | `JSON.stringify` on write, `JSON.parse` in a `try`/`catch` on read, and the `SET` argument order for `PX`, `NX`, `XX` and `KEEPTTL` | `JsonAdapter.set(key, value, { seconds: 60, ifNotExists: true })`; `get()` resolves `undefined` for a missing or unparsable value |
-| **Rank members by score** | `ZADD`, then `ZREVRANGEBYSCORE … WITHSCORES LIMIT`, pair up the flat reply, and a separate `ZCARD` for the total | `ScoreBoard.add(id)`, then `get({ limit: 10 })` returns `{ data: [{ id, score }], meta: { total } }` |
+| **Rank members by score** | `ZADD`, then `ZREVRANGEBYSCORE … WITHSCORES LIMIT`, pair up the flat reply, a separate `ZCARD` for the total, and `ZREMRANGEBYSCORE` to expire old members | `ScoreBoard.add(id)`, `get({ limit: 10 })` returns `{ data: [{ id, score }], meta: { total } }`, and `prune(below)` drops stale members |
 | **Single node or cluster** | Helpers written against `Redis`, or a second code path for `Cluster` | `JsonAdapter` and `ScoreBoard` take either; `createClient()` adds reconnect defaults |
 | **Compound keys** | String concatenation, and a parser that has to agree with it | `buildKeyPath({ prefix, key, suffix })` and `parseKeyPath()`; `escapeKey()` for glob patterns |
 
@@ -239,13 +239,30 @@ const output = await scoreBoard.get({ limit: 10 });
 //     meta: { total: 2, limit: 10 },
 // }
 
-await scoreBoard.drop('user:1');
-await scoreBoard.clear();
+await scoreBoard.rank('user:1'); // 1
+await scoreBoard.score('user:1'); // 1731320400000
+
+// forget users who were not active in the last minute
+await scoreBoard.prune(Date.now() - 60_000);
+```
+
+Counting works the same way, with `increment()` instead of timestamps:
+
+```typescript
+import { ScoreBoard, createClient } from 'redis-extension';
+
+const leaderboard = new ScoreBoard(createClient(), { key: 'leaderboard' });
+
+await leaderboard.increment('alice', 10); // 10
+await leaderboard.increment('alice'); // 11
 ```
 
 - The board is a sorted set stored under `key`, which defaults to `score-board`. Give each board its own key; boards with the same key share their members.
 - `add(id, score?)` runs `ZADD`. Adding an existing id updates its score. The score defaults to `Date.now()`, the current unix timestamp in milliseconds.
-- `get(options?)` returns members highest score first (`sort: 'DESC'`), or lowest first with `sort: 'ASC'`. `offset` skips members and `limit` caps how many come back, and `meta.total` counts all members. Ids come back as strings and scores as numbers.
+- `get(options?)` returns members highest score first (`sort: 'DESC'`), or lowest first with `sort: 'ASC'`. `offset` skips members and `limit` caps how many come back, and `meta.total` counts all members. Ids come back as strings and scores as numbers. `meta.limit` and `meta.offset` are set when you pass them. The page and the total are read in one `MULTI`, so `total` matches `data` while other clients write; a `WATCH` you hold on the same connection aborts that `MULTI`, and `get()` rejects. Scores of `Infinity` and `-Infinity` round-trip.
+- `score(id)` resolves the score of a member, `rank(id, sort?)` its zero-based position (highest score first by default). Both resolve `undefined` for an unknown member.
+- `increment(id, by?)` adds `by` (default `1`) to the score with `ZINCRBY` and resolves the new score; an unknown member starts at `0`.
+- `prune(below)` removes every member with a score lower than `below` and resolves how many it removed.
 - `drop(id)` removes one member; `clear()` deletes the whole board.
 
 ### Key paths
@@ -326,7 +343,7 @@ escapeKey('report[2024]*');
 | `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys |
 | `WatcherEvent` | enum | Event names a `Watcher` emits, such as `SET = 'set'` and `EXPIRED = 'expired'` |
 | `JsonAdapter` | class | `set`, `get` and `drop` of JSON values, on a client or a cluster |
-| `ScoreBoard` | class | `add`, `get`, `drop` and `clear` on a sorted set, on a client or a cluster |
+| `ScoreBoard` | class | `add`, `get`, `score`, `rank`, `increment`, `prune`, `drop` and `clear` on a sorted set, on a client or a cluster |
 | `buildKeyPath`, `parseKeyPath` | function | Join and split `prefix#p#key#s#suffix` |
 | `escapeKey` | function | Escape glob characters in a key |
 | `KeyPathSeparator` | enum | `PREFIX = '#p#'`, `SUFFIX = '#s#'` |
