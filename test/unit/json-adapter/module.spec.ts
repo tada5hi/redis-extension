@@ -75,6 +75,7 @@ describe.each(connections)('json-adapter (%s)', (_name, connect) => {
         await client.sadd('a-set', 'member');
 
         await expect(adapter.get('a-set')).rejects.toThrow(/WRONGTYPE/);
+        await expect(adapter.getMany(['a-set'])).rejects.toThrow(/WRONGTYPE/);
 
         await client.del('a-set');
     });
@@ -213,6 +214,47 @@ describe.each(connections)('json-adapter (%s)', (_name, connect) => {
         expect(results).toEqual([stored, stored]);
 
         await adapter.drop('race');
+    });
+
+    it('should replace an unreadable value with ifNotExists', async () => {
+        const adapter = new JsonAdapter<{ id: number }>(client);
+        let calls = 0;
+        const factory = () => {
+            calls++;
+
+            return { id: 1 };
+        };
+
+        await client.set('unreadable', '{', 'PX', 60000);
+
+        expect(await adapter.getOrSet('unreadable', factory, { ifNotExists: true, seconds: 30 })).toEqual({ id: 1 });
+        expect(await adapter.getOrSet('unreadable', factory, { ifNotExists: true, seconds: 30 })).toEqual({ id: 1 });
+        expect(calls).toEqual(1);
+
+        const ttl = await client.pttl('unreadable');
+
+        expect(ttl).toBeGreaterThan(0);
+        expect(ttl).toBeLessThanOrEqual(30000);
+
+        await adapter.drop('unreadable');
+    });
+
+    it('should keep a valid value written while replacing an unreadable one', async () => {
+        const adapter = new JsonAdapter<{ id: number }>(client);
+
+        await client.set('unreadable:race', '{');
+
+        const output = await adapter.getOrSet('unreadable:race', async () => {
+            // a concurrent caller stores a valid value first
+            await client.set('unreadable:race', JSON.stringify({ id: 2 }));
+
+            return { id: 1 };
+        }, { ifNotExists: true });
+
+        expect(output).toEqual({ id: 2 });
+        expect(await adapter.get('unreadable:race')).toEqual({ id: 2 });
+
+        await adapter.drop('unreadable:race');
     });
 
     it('should reject a value that cannot be serialized', async () => {
