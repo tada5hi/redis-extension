@@ -16,9 +16,15 @@ export class Watcher extends EventEmitter {
 
     protected subscriberClient : Redis | undefined;
 
+    protected starting : Promise<void> | undefined;
+
     protected subscribePatterns: string[];
 
-    protected keyPrefix: string;
+    /**
+     * Fixed start of every subscribed channel: the keyspace channel of the
+     * client database, followed by the client keyPrefix.
+     */
+    protected channelPrefix: string;
 
     protected options : WatcherOptions;
 
@@ -33,9 +39,6 @@ export class Watcher extends EventEmitter {
         this.client = client;
         this.options = options;
 
-        // ioredis applies keyPrefix to commands, but not to pattern subscriptions
-        this.keyPrefix = client.options.keyPrefix || '';
-
         let patterns : string[];
 
         if (this.options.pattern) {
@@ -46,9 +49,14 @@ export class Watcher extends EventEmitter {
             patterns = ['*'];
         }
 
-        const prefix = escapeKey(this.keyPrefix);
+        // ioredis applies keyPrefix to commands, but not to pattern subscriptions
+        const keyPrefix = client.options.keyPrefix || '';
 
-        this.subscribePatterns = patterns.map((pattern) => `__key*__:${prefix}${pattern}`);
+        this.channelPrefix = `__keyspace@${client.options.db || 0}__:${keyPrefix}`;
+
+        const channelPattern = `__keyspace@${client.options.db || 0}__:${escapeKey(keyPrefix)}`;
+
+        this.subscribePatterns = patterns.map((pattern) => `${channelPattern}${pattern}`);
     }
 
     //--------------------------------------------------------------------
@@ -61,12 +69,49 @@ export class Watcher extends EventEmitter {
         return super.on(event, listener);
     }
 
-    /* istanbul ignore next */
+    /**
+     * Subscribe to the keyspace notifications. Calls while the watcher is
+     * starting or running share that start.
+     */
     async start() : Promise<void> {
-        if (this.subscriberClient) {
+        if (!this.starting) {
+            this.starting = this.subscribe().catch((error) => {
+                this.starting = undefined;
+
+                throw error;
+            });
+        }
+
+        return this.starting;
+    }
+
+    async stop() : Promise<void> {
+        const { starting } = this;
+
+        if (!starting) {
             return;
         }
 
+        this.starting = undefined;
+
+        try {
+            await starting;
+        } catch {
+            return;
+        }
+
+        const subscriber = this.subscriberClient!;
+
+        this.subscriberClient = undefined;
+
+        try {
+            await subscriber.punsubscribe(...this.subscribePatterns);
+        } finally {
+            subscriber.disconnect();
+        }
+    }
+
+    protected async subscribe() : Promise<void> {
         const subscriber = this.client.duplicate();
 
         const { notifyKeyspaceEvents = 'KA' } = this.options;
@@ -87,16 +132,12 @@ export class Watcher extends EventEmitter {
             this.emit('error', error);
         });
 
-        subscriber.on('pmessage', (_pattern, _channel, event) => {
-            if ((!this.subscribePatterns.includes(_pattern)) || !_channel.startsWith('__keyspace')) {
+        subscriber.on('pmessage', (pattern: string, channel: string, event: string) => {
+            if (!this.subscribePatterns.includes(pattern)) {
                 return;
             }
 
-            let key = _channel.substring(_channel.indexOf('__:') + 3);
-
-            if (this.keyPrefix && key.startsWith(this.keyPrefix)) {
-                key = key.substring(this.keyPrefix.length);
-            }
+            const key = channel.substring(this.channelPrefix.length);
 
             if (key.length > 0) {
                 this.emit(event, key);
@@ -104,16 +145,5 @@ export class Watcher extends EventEmitter {
         });
 
         this.subscriberClient = subscriber;
-    }
-
-    /* istanbul ignore next */
-    async stop() : Promise<void> {
-        if (!this.subscriberClient) {
-            return;
-        }
-
-        await this.subscriberClient.punsubscribe(...this.subscribePatterns);
-        this.subscriberClient.disconnect();
-        this.subscriberClient = undefined;
     }
 }
