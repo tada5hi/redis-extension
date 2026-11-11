@@ -22,8 +22,8 @@ export class ScoreBoard {
     constructor(client: Client, options: ScoreBoardOptionsInput = {}) {
         this.client = client;
         this.options = {
-            ...options,
             key: 'score-board',
+            ...options,
         };
     }
 
@@ -81,7 +81,7 @@ export class ScoreBoard {
         for (let i = 0; i < data.length; i += 2) {
             items.push({
                 id: data[i]!,
-                score: parseInt(data[i + 1]!, 10),
+                score: Number(data[i + 1]),
             });
         }
 
@@ -98,14 +98,14 @@ export class ScoreBoard {
     }
 
     async clear() {
-        this.client.del(this.options.key);
+        await this.client.del(this.options.key);
     }
 
     //--------------------------------------------------------------------
 
     /**
      * Set the score for a given key.
-     * THe score will be set on default to performance.now()
+     * The score defaults to the current unix timestamp in milliseconds.
      *
      * @param id
      * @param score
@@ -113,7 +113,7 @@ export class ScoreBoard {
     async add(id: string, score?: number) {
         await this.client.zadd(
             this.options.key,
-            score || performance.now(),
+            score ?? Date.now(),
             `${id}`,
         );
     }

@@ -97,4 +97,44 @@ describe('score-board', () => {
         ids = output.data.map((item) => item.id);
         expect(ids).toEqual(['foo']);
     });
+
+    it('should use the configured key', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'users-online' });
+
+        await scoreBoard.add('configured');
+        expect(await client.zscore('users-online', 'configured')).not.toBeNull();
+        expect(await client.zscore('score-board', 'configured')).toBeNull();
+
+        await scoreBoard.clear();
+        expect(await client.exists('users-online')).toEqual(0);
+    });
+
+    it('should default the score to a unix timestamp in milliseconds', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'timestamps' });
+
+        const before = Date.now();
+        await scoreBoard.add('foo');
+        const after = Date.now();
+
+        const { data } = await scoreBoard.get();
+        expect(data[0]!.score).toBeGreaterThanOrEqual(before);
+        expect(data[0]!.score).toBeLessThanOrEqual(after);
+
+        await scoreBoard.clear();
+    });
+
+    it('should keep zero and fractional scores', async () => {
+        const scoreBoard = new ScoreBoard(client, { key: 'explicit-scores' });
+
+        await scoreBoard.add('zero', 0);
+        await scoreBoard.add('fraction', 1.5);
+
+        const { data } = await scoreBoard.get({ sort: 'ASC' });
+        expect(data).toEqual([
+            { id: 'zero', score: 0 },
+            { id: 'fraction', score: 1.5 },
+        ]);
+
+        await scoreBoard.clear();
+    });
 });
