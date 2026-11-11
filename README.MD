@@ -86,10 +86,10 @@ A `Watcher` turns Redis keyspace notifications into Node.js events:
 ## Installation
 
 ```bash
-npm install redis-extension --save
+npm install redis-extension ioredis --save
 ```
 
-The package ships ES module and CommonJS builds with type declarations. It requires Node.js 24 or newer and depends on [ioredis](https://github.com/redis/ioredis) 6. The `Client` and `Cluster` it exports are the ioredis `Redis` and `Cluster` classes, so every ioredis command and option is available on them.
+The package ships ES module and CommonJS builds with type declarations. It requires Node.js 24 or newer and takes [ioredis](https://github.com/redis/ioredis) 6 as a peer dependency, so the helpers use your copy of ioredis. The `Client` and `Cluster` it exports are the ioredis `Redis` and `Cluster` classes, so every ioredis command and option is available on them.
 
 ## Usage
 
