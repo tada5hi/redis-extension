@@ -295,7 +295,7 @@ escapeKey('report[2024]*');
 | Option | Type | Default | Description |
 |---|---|---|---|
 | `pattern` | `string \| string[]` | every key | Glob pattern(s) for the keys to watch, as in [`PSUBSCRIBE`](https://redis.io/docs/latest/commands/psubscribe/) |
-| `notifyKeyspaceEvents` | `string \| false` | `'KA'` | Written to the server's `notify-keyspace-events` setting by `start()`; `false` leaves the server setting alone |
+| `notifyKeyspaceEvents` | `string \| false` | `'KA'` | Written to the server's `notify-keyspace-events` setting by `start()`. It must contain `K` (keyspace channels) and the event classes to watch, such as `Kg$x`; without `K`, no event is emitted. `false` leaves the server setting alone, which then needs the same flags |
 
 ### JsonAdapter set options
 
@@ -351,7 +351,7 @@ escapeKey('report[2024]*');
 - **Listen for `error`.** The watcher re-emits connection errors as `error`; without a listener, Node.js throws them.
 - **`Watcher` takes a `Redis` client.** It does not accept a `Cluster`.
 - **`JsonAdapter.get()` does not tell a missing key from invalid JSON.** Both resolve `undefined`; read the raw value with the client when you need to know which.
-- **The default retry strategy never gives up.** Commands queue while the client reconnects. Pass your own `retryStrategy` (return `null` to stop) or ioredis' `maxRetriesPerRequest` to fail faster.
+- **The default retry strategy never gives up, but queued commands do.** The client keeps reconnecting, while ioredis rejects a queued command after `maxRetriesPerRequest` reconnection attempts (20 by default). Set `maxRetriesPerRequest: null` in `options` to let commands wait until the connection is back, or pass your own `retryStrategy` (return `null` to stop reconnecting).
 
 ## License
 
