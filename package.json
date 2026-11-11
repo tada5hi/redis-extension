@@ -5,6 +5,9 @@
     "main": "dist/index.cjs",
     "module": "dist/index.mjs",
     "types": "dist/index.d.ts",
+    "files": [
+        "dist"
+    ],
     "exports": {
         "./package.json": "./package.json",
         ".": {
@@ -58,6 +61,7 @@
         "cross-env": "^10.1.0",
         "eslint": "^10.14.0",
         "husky": "^9.1.7",
+        "ioredis": "^6.0.0",
         "monoship": "^2.2.1",
         "testcontainers": "^12.2.1",
         "tsdown": "^0.23.7",
@@ -65,9 +69,8 @@
         "typescript-eslint": "^8.72.1",
         "vitest": "^5.1.0"
     },
-    "dependencies": {
-        "ioredis": "^6.0.0",
-        "smob": "^1.6.1"
+    "peerDependencies": {
+        "ioredis": "^6.0.0"
     },
     "engines": {
         "node": ">=24.0.0"
