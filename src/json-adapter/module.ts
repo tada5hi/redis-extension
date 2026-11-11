@@ -53,16 +53,15 @@ export class JsonAdapter {
     }
 
     async get<T = any>(key: string) : Promise<undefined | T> {
+        const entry = await this.client.get(key);
+
+        if (entry === null) {
+            return undefined;
+        }
+
         try {
-            const entry = await this.client.get(key);
-
-            if (entry === null || typeof entry === 'undefined') {
-                return undefined;
-            }
-
             return JSON.parse(entry) as T;
         } catch {
-            /* istanbul ignore next */
             return undefined;
         }
     }

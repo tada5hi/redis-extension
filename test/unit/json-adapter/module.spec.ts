@@ -49,4 +49,22 @@ describe('json-adapter', () => {
 
         await watcher.drop('id');
     });
+
+    it('should resolve undefined for a value that is not json', async () => {
+        const adapter = new JsonAdapter(client);
+        await client.set('not-json', '{');
+
+        expect(await adapter.get('not-json')).toBeUndefined();
+
+        await adapter.drop('not-json');
+    });
+
+    it('should reject when the command fails', async () => {
+        const adapter = new JsonAdapter(client);
+        await client.sadd('a-set', 'member');
+
+        await expect(adapter.get('a-set')).rejects.toThrow(/WRONGTYPE/);
+
+        await client.del('a-set');
+    });
 });
