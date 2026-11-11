@@ -112,7 +112,7 @@ await adapter.set('greeting', { text: 'hello' });
 - `createCluster(input)` opens a new ioredis `Cluster` from the startup `nodes`. Its `options` are passed to ioredis as they are; the client defaults do not apply.
 - Close a connection with `disconnect()` or `quit()` when you no longer need it.
 
-`JsonAdapter` and `ScoreBoard` accept a client or a cluster:
+`Watcher`, `JsonAdapter` and `ScoreBoard` accept a client or a cluster:
 
 ```typescript
 import { ScoreBoard, createCluster } from 'redis-extension';
@@ -162,11 +162,30 @@ await client.del('user:1');
 await watcher.stop();
 ```
 
-- `start()` runs `CONFIG SET notify-keyspace-events KA` on the server (see [`notifyKeyspaceEvents`](#watcher-options) to skip it), opens a duplicate connection with `client.duplicate()` and pattern-subscribes it to `__keyspace@<db>__:<pattern>` for every pattern, where `<db>` is the client's database. Calls while the watcher starts or runs share that start.
+- `start()` runs `CONFIG SET notify-keyspace-events KA` on the server (see [`notifyKeyspaceEvents`](#watcher-options) to skip it) and pattern-subscribes to `__keyspace@<db>__:<pattern>` for every pattern, where `<db>` is the client's database. Calls while the watcher starts or runs share that start.
+- Each watcher opens its own subscriber connection with `client.duplicate()` on `start()`, one per master on a cluster, and closes it on `stop()`. To watch several patterns over one connection, pass them as an array to one watcher.
 - The event name is the Redis notification: `set`, `del`, `expire` (a TTL was set), `expired` (the key was removed because its TTL ran out), `rename_from`, `hset`, `lpush`, `zadd` and so on. The listener receives the key. A `SET … PX 500` emits `set` and `expire`, then `expired` 500 ms later.
 - `pattern` takes a glob or an array of globs (`h?llo`, `h*llo`, `h[ae]llo`) and defaults to every key of the client's database. A change emits once per pattern it matches, so overlapping patterns emit it more than once. Pass a key through [`escapeKey()`](#key-paths) to watch it literally. With an ioredis `keyPrefix` on the client, patterns match keys below that prefix, and listeners receive keys without it, as you pass them to the client.
-- Errors of the subscriber connection are re-emitted as `error`.
-- `stop()` unsubscribes and disconnects the duplicate connection. The client you passed in stays open.
+- Errors of the subscriber connection are re-emitted as `error` on the watcher.
+- `stop()` unsubscribes the watcher's patterns and closes its subscriber connection. The client you passed in stays open.
+- On a cluster, each master publishes the notifications of its own keys, so `start()` waits until the cluster is ready, through reconnect errors, and subscribes on every master; it rejects when the cluster is closed before it gets ready. Subscriber connections to cluster nodes reconnect on their own and restore their subscriptions. Masters that join later, for example after resharding, are watched from the next `start()` on.
+
+A watcher is also an async disposable, so `await using` stops it at the end of the block:
+
+```typescript
+import { Watcher, createClient } from 'redis-extension';
+
+const client = createClient();
+
+{
+    await using watcher = new Watcher(client, { pattern: 'job:*' });
+    watcher.on('del', (key) => console.log('done', key));
+    await watcher.start();
+
+    await client.del('job:1');
+}
+// the watcher is stopped here
+```
 
 `on()` accepts the event names as strings or as members of the exported `WatcherEvent` enum:
 
@@ -387,7 +406,7 @@ escapeKey('report[2024]*');
 | `createClient` | function | New ioredis client from a `ClientInput`, with the default options |
 | `createCluster` | function | New ioredis cluster from a `ClusterInput` |
 | `Client`, `Cluster` | class | The ioredis `Redis` and `Cluster` classes |
-| `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys |
+| `Watcher` | class | `EventEmitter` for keyspace notifications of matching keys, on a client or a cluster |
 | `WatcherEvent` | enum | Event names a `Watcher` emits, such as `SET = 'set'` and `EXPIRED = 'expired'` |
 | `JsonAdapter` | class | `get`, `set`, `getMany`, `setMany`, `getOrSet` and `drop` of JSON values, on a client or a cluster |
 | `ScoreBoard` | class | `add`, `get`, `score`, `rank`, `increment`, `prune`, `drop` and `clear` on a sorted set, on a client or a cluster |
@@ -404,7 +423,7 @@ escapeKey('report[2024]*');
 - **Watcher events are delivered at most once.** Keyspace notifications are Redis pub/sub: changes made before `start()`, while the duplicate connection reconnects or after `stop()` emit nothing, and they are not replayed.
 - **`expired` is not `expire`.** `expire` fires when a TTL is set (including `SET … PX`); `expired` fires when Redis removes the key. Redis removes expired keys lazily or in a background cycle, so `expired` can arrive after the TTL has run out.
 - **Listen for `error`.** The watcher re-emits connection errors as `error`; without a listener, Node.js throws them.
-- **`Watcher` takes a `Redis` client.** It does not accept a `Cluster`.
+- **A cluster watcher covers the masters known at `start()`.** Restart the watcher after adding masters to the cluster.
 - **`JsonAdapter.get()` does not tell a missing key from invalid JSON.** Both resolve `undefined`; read the raw value with the client when you need to know which.
 - **The default retry strategy never gives up, but queued commands do.** The client keeps reconnecting, while ioredis rejects a queued command after `maxRetriesPerRequest` reconnection attempts (20 by default). Set `maxRetriesPerRequest: null` in `options` to let commands wait until the connection is back, or pass your own `retryStrategy` (return `null` to stop reconnecting).
 

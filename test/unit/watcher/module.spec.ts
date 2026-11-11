@@ -1,17 +1,18 @@
 import { once } from 'node:events';
-import { 
-    afterAll, 
-    beforeAll, 
-    describe, 
-    expect, 
-    it, 
+import {
+    afterAll,
+    beforeAll,
+    describe,
+    expect,
+    it,
 } from 'vitest';
-import type { Client } from '../../../src';
-import { 
-    Watcher, 
-    WatcherEvent, 
-    buildKeyPath, 
-    createClient, 
+import type { Client, Cluster } from '../../../src';
+import { connections } from '../../utils/connections';
+import {
+    Watcher,
+    WatcherEvent,
+    buildKeyPath,
+    createClient,
 } from '../../../src';
 
 describe('watcher', () => {
@@ -27,9 +28,9 @@ describe('watcher', () => {
 
     it('should watch specific key', async () => {
         const keyPath = buildKeyPath({
-            prefix: 'prefix', 
-            key: 'key', 
-            suffix: 'suffix', 
+            prefix: 'prefix',
+            key: 'key',
+            suffix: 'suffix',
         });
         const watcher = new Watcher(client, { pattern: keyPath });
 
@@ -144,7 +145,7 @@ describe('watcher', () => {
 
             await expect(watcher.start()).rejects.toThrow();
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
 
             expect(await countConnections()).toEqual(before);
@@ -186,7 +187,7 @@ describe('watcher', () => {
             await client.set('database:from-db0', 'x');
             await db1.set('database:from-db1', 'x');
             await new Promise((resolve) => {
-                setTimeout(resolve, 200); 
+                setTimeout(resolve, 200);
             });
             expect(keys).toEqual(['database:from-db1']);
         } finally {
@@ -208,7 +209,7 @@ describe('watcher', () => {
             await client.set('other__:separator:1', 'x');
             await client.set('separator:2', 'x');
             await new Promise((resolve) => {
-                setTimeout(resolve, 200); 
+                setTimeout(resolve, 200);
             });
             expect(keys).toEqual(['separator:2']);
         } finally {
@@ -236,7 +237,7 @@ describe('watcher', () => {
 
             await watcher.stop();
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(await countConnections()).toEqual(1);
         } finally {
@@ -267,25 +268,198 @@ describe('watcher', () => {
 
             await Promise.all([first, stopping, second]);
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(await countConnections()).toEqual(2);
 
             await named.set('restart:1', 'x');
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(keys).toEqual(['restart:1']);
 
             await watcher.stop();
             await watcher.stop();
             await new Promise((resolve) => {
-                setTimeout(resolve, 100); 
+                setTimeout(resolve, 100);
             });
             expect(await countConnections()).toEqual(1);
         } finally {
             await named.del('restart:1');
             named.disconnect();
+        }
+    });
+
+    it('should give each watcher of a client its own subscriber', async () => {
+        const named = createClient({
+            url: process.env.REDIS_CONNECTION_STRING,
+            options: { connectionName: 'watcher-shared' },
+        });
+        const countConnections = async () => (await named.client('LIST') as string)
+            .split('\n')
+            .filter((line) => line.includes(' name=watcher-shared ')).length;
+
+        const first = new Watcher(named, { pattern: 'shared:*' });
+        const second = new Watcher(named, { pattern: 'shared:*' });
+        const keys: string[] = [];
+
+        second.on('set', (key) => keys.push(key));
+
+        try {
+            await named.ping();
+            await Promise.all([first.start(), second.start()]);
+            expect(await countConnections()).toEqual(3);
+
+            await first.stop();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(await countConnections()).toEqual(2);
+
+            await named.set('shared:1', 'x');
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(keys).toEqual(['shared:1']);
+
+            await second.stop();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(await countConnections()).toEqual(1);
+        } finally {
+            await Promise.all([first.stop(), second.stop()]);
+            await named.del('shared:1');
+            named.disconnect();
+        }
+    });
+
+    it('should stop on async dispose', async () => {
+        const named = createClient({
+            url: process.env.REDIS_CONNECTION_STRING,
+            options: { connectionName: 'watcher-dispose' },
+        });
+        const countConnections = async () => (await named.client('LIST') as string)
+            .split('\n')
+            .filter((line) => line.includes(' name=watcher-dispose ')).length;
+
+        const watcher = new Watcher(named);
+
+        try {
+            await named.ping();
+            await watcher.start();
+            expect(await countConnections()).toEqual(2);
+
+            await watcher[Symbol.asyncDispose]();
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(await countConnections()).toEqual(1);
+        } finally {
+            await watcher.stop();
+            named.disconnect();
+        }
+    });
+
+    it('should watch the keys on every node of a cluster', async () => {
+        const cluster = connections.find(([name]) => name === 'cluster')![1]() as Cluster;
+        const watcher = new Watcher(cluster, { pattern: 'cluster:*' });
+        const keys = Array.from({ length: 12 }, (_, i) => `cluster:${i}`);
+        const seen = new Set<string>();
+
+        try {
+            await watcher.start();
+
+            const all = new Promise<void>((resolve) => {
+                watcher.on('set', (key) => {
+                    seen.add(key);
+
+                    if (seen.size === keys.length) {
+                        resolve();
+                    }
+                });
+            });
+
+            // the keys spread over the slot ranges of all three masters (0-5460, 5461-10922, 10923-16383)
+            const slots = await Promise.all(keys.map((key) => cluster.cluster('KEYSLOT', key) as Promise<number>));
+
+            expect(new Set(slots.map((slot) => Math.floor(Number(slot) / 5461))).size).toEqual(3);
+
+            await Promise.all(keys.map((key) => cluster.set(key, 'x')));
+            await all;
+            expect([...seen].sort()).toEqual([...keys].sort());
+        } finally {
+            await watcher.stop();
+            await Promise.all(keys.map((key) => cluster.del(key)));
+            cluster.disconnect();
+        }
+    });
+
+    it('should start further watchers of a RESP2 client', async () => {
+        const resp2 = createClient({ url: process.env.REDIS_CONNECTION_STRING, options: { protocol: 2 } });
+        const first = new Watcher(resp2, { pattern: 'resp2:*' });
+        const second = new Watcher(resp2, { pattern: 'resp2:*' });
+        const keys: string[] = [];
+
+        second.on('set', (key) => keys.push(key));
+
+        try {
+            await first.start();
+            await second.start();
+            await Promise.all([first.stop(), first.start()]);
+
+            await resp2.set('resp2:1', 'x');
+            await new Promise((resolve) => {
+                setTimeout(resolve, 100);
+            });
+            expect(keys).toEqual(['resp2:1']);
+        } finally {
+            await Promise.all([first.stop(), second.stop()]);
+            await resp2.del('resp2:1');
+            resp2.disconnect();
+        }
+    });
+
+    it('should settle start and stop when the cluster ends before it is ready', async () => {
+        const cluster = connections.find(([name]) => name === 'cluster')![1]() as Cluster;
+        const watcher = new Watcher(cluster);
+
+        const starting = watcher.start();
+        cluster.disconnect();
+
+        await expect(starting).rejects.toThrow(/closed/);
+        await watcher.stop();
+    });
+
+    it('should keep watching a cluster after its subscriber connections drop', async () => {
+        const cluster = connections.find(([name]) => name === 'cluster')![1]() as Cluster;
+        const watcher = new Watcher(cluster, { pattern: 'reconnect:*' });
+        const keys = Array.from({ length: 12 }, (_, i) => `reconnect:${i}`);
+        const seen = new Set<string>();
+
+        try {
+            await watcher.start();
+
+            // drop the pattern subscriptions on every master
+            await Promise.all(cluster.nodes('master').map((node) => node.call('CLIENT', 'KILL', 'TYPE', 'pubsub')));
+            await new Promise((resolve) => {
+                setTimeout(resolve, 500);
+            });
+
+            const all = new Promise<void>((resolve) => {
+                watcher.on('set', (key) => {
+                    seen.add(key);
+                    if (seen.size === keys.length) resolve();
+                });
+            });
+
+            await Promise.all(keys.map((key) => cluster.set(key, 'x')));
+            await all;
+            expect([...seen].sort()).toEqual([...keys].sort());
+        } finally {
+            await watcher.stop();
+            await Promise.all(keys.map((key) => cluster.del(key)));
+            cluster.disconnect();
         }
     });
 });

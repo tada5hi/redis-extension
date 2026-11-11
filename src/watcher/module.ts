@@ -6,19 +6,26 @@
  */
 
 import { EventEmitter } from 'node:events';
-import type { Redis } from 'ioredis';
+import type { Cluster, Redis } from 'ioredis';
 import { escapeKey } from '../key';
 import type { WatcherEvent } from './consants';
+import { Subscriber } from './subscriber';
+import type { ISubscriber, SubscriberListener } from './subscriber';
 import type { WatcherOptions } from './types';
 
+type Subscription = {
+    subscribers: ISubscriber[],
+    listener: SubscriberListener
+};
+
 export class Watcher extends EventEmitter {
-    protected client: Redis;
+    protected client: Redis | Cluster;
 
     /**
-     * The start in progress or done, resolving the subscriber connection it
-     * opened. Each stop tears down the subscriber of the start it ends.
+     * The start in progress or done, resolving the subscription it made.
+     * Each stop removes the subscription of the start it ends.
      */
-    protected starting : Promise<Redis> | undefined;
+    protected starting : Promise<Subscription> | undefined;
 
     protected subscribePatterns: string[];
 
@@ -30,10 +37,17 @@ export class Watcher extends EventEmitter {
 
     protected options : WatcherOptions;
 
+    /**
+     * The subscriber of each connection the watcher subscribes on, kept
+     * across restarts, so a stop and a restart that overlap use the same
+     * connection.
+     */
+    protected subscribers = new WeakMap<Redis, ISubscriber>();
+
     //--------------------------------------------------------------------
 
     constructor(
-        client: Redis,
+        client: Redis | Cluster,
         options: WatcherOptions = {},
     ) {
         super();
@@ -53,10 +67,12 @@ export class Watcher extends EventEmitter {
 
         // ioredis applies keyPrefix to commands, but not to pattern subscriptions
         const keyPrefix = client.options.keyPrefix || '';
+        // a cluster only has database 0
+        const db = client.isCluster ? 0 : (client as Redis).options.db || 0;
 
-        this.channelPrefix = `__keyspace@${client.options.db || 0}__:${keyPrefix}`;
+        this.channelPrefix = `__keyspace@${db}__:${keyPrefix}`;
 
-        const channelPattern = `__keyspace@${client.options.db || 0}__:${escapeKey(keyPrefix)}`;
+        const channelPattern = `__keyspace@${db}__:${escapeKey(keyPrefix)}`;
 
         this.subscribePatterns = patterns.map((pattern) => `${channelPattern}${pattern}`);
     }
@@ -101,54 +117,135 @@ export class Watcher extends EventEmitter {
 
         this.starting = undefined;
 
-        let subscriber : Redis;
+        let subscription : Subscription;
 
         try {
-            subscriber = await starting;
+            subscription = await starting;
         } catch {
             return;
         }
 
-        try {
-            await subscriber.punsubscribe(...this.subscribePatterns);
-        } finally {
-            subscriber.disconnect();
-        }
+        await Promise.all(subscription.subscribers.map(
+            (subscriber) => subscriber.remove(this.subscribePatterns, subscription.listener),
+        ));
     }
 
-    protected async subscribe() : Promise<Redis> {
-        const subscriber = this.client.duplicate();
+    /**
+     * Stop the watcher at the end of an `await using` block.
+     */
+    async [Symbol.asyncDispose]() : Promise<void> {
+        await this.stop();
+    }
+
+    protected async subscribe() : Promise<Subscription> {
+        // a listener per start, so a stop removes only the start it ends
+        const listener : SubscriberListener = {
+            message: (_pattern, channel, event) => {
+                const key = channel.substring(this.channelPrefix.length);
+
+                if (key.length > 0) {
+                    this.emit(event, key);
+                }
+            },
+            error: (error) => {
+                this.emit('error', error);
+            },
+        };
 
         const { notifyKeyspaceEvents = 'KA' } = this.options;
+        const subscribers : ISubscriber[] = [];
 
         try {
-            if (notifyKeyspaceEvents !== false) {
-                await subscriber.config('SET', 'notify-keyspace-events', notifyKeyspaceEvents);
-            }
+            for (const node of await this.nodes()) {
+                const subscriber = this.subscriber(node);
 
-            await subscriber.psubscribe(...this.subscribePatterns);
+                await subscriber.add(this.subscribePatterns, listener, notifyKeyspaceEvents);
+                subscribers.push(subscriber);
+            }
         } catch (error) {
-            subscriber.disconnect();
+            await Promise.all(subscribers.map(
+                (subscriber) => subscriber.remove(this.subscribePatterns, listener).catch(() => undefined),
+            ));
 
             throw error;
         }
 
-        subscriber.on('error', (error) => {
-            this.emit('error', error);
-        });
+        return { subscribers, listener };
+    }
 
-        subscriber.on('pmessage', (pattern: string, channel: string, event: string) => {
-            if (!this.subscribePatterns.includes(pattern)) {
+    protected subscriber(node: Redis) : ISubscriber {
+        let subscriber = this.subscribers.get(node);
+
+        if (!subscriber) {
+            subscriber = new Subscriber(node);
+            this.subscribers.set(node, subscriber);
+        }
+
+        return subscriber;
+    }
+
+    /**
+     * The connections whose notifications to watch: the client itself, or
+     * every master of a cluster, since each node only publishes the
+     * notifications of its own keys.
+     */
+    protected async nodes() : Promise<Redis[]> {
+        if (!this.client.isCluster) {
+            return [this.client as Redis];
+        }
+
+        const cluster = this.client as Cluster;
+
+        if (cluster.status === 'wait') {
+            await cluster.connect();
+        } else if (cluster.status !== 'ready') {
+            await this.ready(cluster);
+        }
+
+        return cluster.nodes('master');
+    }
+
+    /**
+     * Wait until the cluster is ready. Errors on the way are not terminal,
+     * since ioredis keeps retrying; a closed cluster is.
+     */
+    protected ready(cluster: Cluster) : Promise<void> {
+        // only disconnect(), quit() or giving up lead to these states
+        const closed = () => cluster.status === 'end' || cluster.status === 'disconnecting';
+
+        return new Promise((resolve, reject) => {
+            if (closed()) {
+                reject(new Error('The cluster connection is closed.'));
+
                 return;
             }
 
-            const key = channel.substring(this.channelPrefix.length);
+            const onReady = () => {
+                cleanup();
+                resolve();
+            };
+            const onEnd = () => {
+                cleanup();
+                reject(new Error('The cluster connection closed before it was ready.'));
+            };
+            // a cluster disconnected while connecting stays 'disconnecting' and
+            // emits no 'end', so the status is checked as well
+            const interval = setInterval(() => {
+                if (closed()) {
+                    onEnd();
+                }
+            }, 100);
 
-            if (key.length > 0) {
-                this.emit(event, key);
-            }
+            interval.unref();
+
+            const cleanup = () => {
+                clearInterval(interval);
+                cluster.off('ready', onReady);
+                cluster.off('end', onEnd);
+            };
+
+            cluster.on('ready', onReady);
+            cluster.on('end', onEnd);
         });
-
-        return subscriber;
     }
 }

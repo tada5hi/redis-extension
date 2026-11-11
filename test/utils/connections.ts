@@ -3,13 +3,13 @@ import { createClient, createCluster } from '../../src';
 
 function createTestCluster(): Cluster {
     const host = process.env.REDIS_CLUSTER_HOST!;
-    const port = Number(process.env.REDIS_CLUSTER_PORT);
+    const nodes = JSON.parse(process.env.REDIS_CLUSTER_NODES!) as { announced: string, port: number }[];
 
     return createCluster({
-        nodes: [{ host, port }],
+        nodes: nodes.map(({ port }) => ({ host, port })),
         options: {
-            // the node announces its container address; route it to the published port
-            natMap: { [process.env.REDIS_CLUSTER_ANNOUNCED!]: { host, port } },
+            // the nodes announce their container address; route it to the published ports
+            natMap: Object.fromEntries(nodes.map(({ announced, port }) => [announced, { host, port }])),
         },
     });
 }
